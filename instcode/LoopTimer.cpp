@@ -181,12 +181,13 @@ extern "C"
         for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); ++iit) {
             LoopTimers* imageData = AllData->GetData(*iit, pthread_self());
 
+            uint64_t imgHash = *iit;
             uint64_t* loopHashes = imageData->loopHashes;
             uint64_t loopCount = imageData->loopCount;
 
             for (uint64_t loopIndex = 0; loopIndex < loopCount; ++loopIndex){
                 uint64_t loopHash = loopHashes[loopIndex];
-                fprintf(outFile, "0x%llx:\n", loopHash);
+                fprintf(outFile, "0x%llx:0x%llx:\n", imgHash, loopHash);
                 for (set<thread_key_t>::iterator tit = AllData->allthreads.begin(); tit != AllData->allthreads.end(); ++tit) {
                     LoopTimers* timers = AllData->GetData(*iit, *tit);
                     fprintf(outFile, "\tThread: 0x%llx\tTime: %f\n", *tit, (double)(timers->loopTimerAccum[loopIndex]) / CLOCK_RATE_HZ);

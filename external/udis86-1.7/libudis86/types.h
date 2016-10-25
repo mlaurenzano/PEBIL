@@ -94,21 +94,31 @@ enum ud_type
   UD_R_ST4,	UD_R_ST5,	UD_R_ST6,	UD_R_ST7, 
 
   /* extended multimedia registers */
-  /* 123-138 */
+  /* 123-154 */
   UD_R_XMM0,	UD_R_XMM1,	UD_R_XMM2,	UD_R_XMM3,
   UD_R_XMM4,	UD_R_XMM5,	UD_R_XMM6,	UD_R_XMM7,
   UD_R_XMM8,	UD_R_XMM9,	UD_R_XMM10,	UD_R_XMM11,
   UD_R_XMM12,	UD_R_XMM13,	UD_R_XMM14,	UD_R_XMM15,
 
+  UD_R_XMM16,	UD_R_XMM17,	UD_R_XMM18,	UD_R_XMM19,
+  UD_R_XMM20,	UD_R_XMM21,	UD_R_XMM22,	UD_R_XMM23,
+  UD_R_XMM24,	UD_R_XMM25,	UD_R_XMM26,	UD_R_XMM27,
+  UD_R_XMM28,	UD_R_XMM29,	UD_R_XMM30,	UD_R_XMM31,
+
   /* 256-bit AVX registers */
-  /* 139-154 */
+  /* 155-186 */
   UD_R_YMM0,	UD_R_YMM1,	UD_R_YMM2,	UD_R_YMM3,
   UD_R_YMM4,	UD_R_YMM5,	UD_R_YMM6,	UD_R_YMM7,
   UD_R_YMM8,	UD_R_YMM9,	UD_R_YMM10,	UD_R_YMM11,
   UD_R_YMM12,	UD_R_YMM13,	UD_R_YMM14,	UD_R_YMM15,
 
+  UD_R_YMM16,	UD_R_YMM17,	UD_R_YMM18,	UD_R_YMM19,
+  UD_R_YMM20,	UD_R_YMM21,	UD_R_YMM22,	UD_R_YMM23,
+  UD_R_YMM24,	UD_R_YMM25,	UD_R_YMM26,	UD_R_YMM27,
+  UD_R_YMM28,	UD_R_YMM29,	UD_R_YMM30,	UD_R_YMM31,
+
   /* 512-bit AVX registers */
-  /* 155 - 186 */
+  /* 187 - 219 */
   UD_R_ZMM0,	UD_R_ZMM1,	UD_R_ZMM2,	UD_R_ZMM3,
   UD_R_ZMM4,	UD_R_ZMM5,	UD_R_ZMM6,	UD_R_ZMM7,
   UD_R_ZMM8,	UD_R_ZMM9,	UD_R_ZMM10,	UD_R_ZMM11,
@@ -120,11 +130,11 @@ enum ud_type
   UD_R_ZMM28,	UD_R_ZMM29,	UD_R_ZMM30,	UD_R_ZMM31,
 
   /* 16-bit K registers */
-  /* 187 - 194 */
+  /* 220 - 227 */
   UD_R_K0,	UD_R_K1,	UD_R_K2,	UD_R_K3,
   UD_R_K4,	UD_R_K5,	UD_R_K6,	UD_R_K7,
 
-  /* 195 */
+  /* 228 */
   UD_R_RIP,
 
   /* Operand Types */
@@ -201,7 +211,10 @@ struct ud
   uint8_t               pfx_avx;
   uint8_t               avx_vex[2];
   uint8_t               pfx_size;
-  uint8_t               mvex[3];
+  union {
+      uint8_t           mvex[3];
+      uint8_t           evex[3];
+  };
   enum ud_type          vector_mask_register;
   uint8_t               conversion;
   uint8_t		default64;

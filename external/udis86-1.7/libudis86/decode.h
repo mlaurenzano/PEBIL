@@ -161,6 +161,7 @@
 #define SIB_S(b)        ( ( b ) >> 6 )
 #define SIB_I(b)        ( ( ( b ) >> 3 ) & 7 )
 #define SIB_B(b)        ( ( b ) & 7 )
+#define SIB_SCALE(b)    ((1 << SIB_S(b)) & ~1)
 
 /* modrm bits */
 #define MODRM_REG(b)    ( ( ( b ) >> 3 ) & 7 )
@@ -206,6 +207,32 @@
 
 #define MVEX_REX_DEF(b,x,r,w) VEX_REX_DEF(b,x,r,w)
 
+/* EVEX prefix
+ *
+ * |7..0|7 6 5 4  32 10|7 6543 2 10|7 6 5 4 3  210|
+ * | 62 |R X B R' 00 mm|W vvvv 1 pp|z L'L b v' aaa|
+ */
+#define EVEX_R(evex)    ( ( (~evex[0]) >> 7 ) & 1 )
+#define EVEX_X(evex)    ( ( (~evex[0]) >> 6 ) & 1 )
+#define EVEX_B(evex)    ( ( (~evex[0]) >> 5 ) & 1 )
+#define EVEX_RP(evex)   ( ( (~evex[0]) >> 4 ) & 1 )
+#define EVEX_MM(evex)   ( ( ( evex[0])      ) & 3 )
+#define EVEX_W(evex)    ( ( ( evex[1]) >> 7 ) & 1 )
+#define EVEX_vvvv(evex) ( ( (~evex[1]) >> 3 ) & 15 )
+#define IS_EVEX(evex)   ( ( ( evex[1]) >> 2 ) & 1 )
+#define EVEX_pp(evex)   ( ( ( evex[1])      ) & 3 )
+#define EVEX_z(evex)    ( ( ( evex[2]) >> 7 ) & 1 )
+#define EVEX_LL(evex)   ( ( ( evex[2]) >> 5 ) & 3 )
+#define EVEX_b(evex)    ( ( ( evex[2]) >> 4 ) & 1 )
+#define EVEX_vp(evex)   ( ( (~evex[2]) >> 3 ) & 1 )
+#define EVEX_aaa(evex)  ( ( ( evex[2])      ) & 7 )
+
+#define EVEX_REX(evex) VEX_REX_DEF(EVEX_B(evex), EVEX_X(evex), EVEX_R(evex), EVEX_W(evex))
+
+// SAE context (EVEX.b)
+#define B_ER    0
+#define B_SAE   1
+
 /* operand type constants -- order is important! */
 
 enum ud_operand_code {
@@ -245,7 +272,7 @@ enum ud_operand_code {
 
     OP_R,      OP_C,  OP_D,       OP_VR,  OP_PR,
     OP_X,
-    OP_ZR,     OP_ZM, OP_ZRM, OP_ZV, OP_ZVM,
+    OP_ZR,     OP_ZM, OP_ZRM, OP_ZRMER, OP_ZV, OP_ZVM,
     OP_KR, OP_KRM, OP_KV
 };
 
@@ -410,6 +437,7 @@ enum ud_operand_size {
 #define O_ZR      { OP_ZR,       SZ_XZ    }
 #define O_ZM      { OP_ZM,       SZ_XZ    }
 #define O_ZRM     { OP_ZRM,      SZ_XZ    }
+#define O_ZRMER   { OP_ZRMER,    SZ_XZ    }
 #define O_ZV      { OP_ZV,       SZ_XZ    }
 #define O_ZVM     { OP_ZVM,      SZ_XZ    }
 

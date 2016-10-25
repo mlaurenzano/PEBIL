@@ -64,6 +64,7 @@ const char * ud_lookup_mnemonic( enum ud_mnemonic_code c )
 static enum ud_type 
 resolve_reg(struct ud* u, unsigned int type, unsigned char i)
 {
+  PEBIL_DEBUG("resolve_reg: type = %d, %u", type, i);
   switch (type) {
     case T_MMX :    return UD_R_MM0  + (i & 7);
     case T_XMM :    return UD_R_XMM0 + i;
@@ -153,6 +154,42 @@ static void decode_vex(struct ud* u)
     }
 }
 
+/* EVEX prefix
+ *
+*
+ * |7..0|7 6 5 4  32 10|7 6543 2 10|7 6 5 4 3  210|
+ * | 62 |R X B R' 00 mm|W vvvv 1 pp|z L'L b v' aaa|
+ *
+ * z: zeroing/mergine
+ * L'L: vector length
+ * b: broadcast/rc/sae context
+ */
+
+static void decode_evex(struct ud* u)
+{
+    // Decode PP
+    uint8_t ext;
+    switch(EVEX_pp(u->evex)) {
+        case 0:
+          ext = 0x00;
+          break;
+        case 1:
+          ext = 0x66;
+          break;
+        case 2:
+          ext = 0xF3;
+          break;
+        case 3:
+          ext = 0xF2;
+          break;
+        default:
+          assert(0);
+    }
+    u->pfx_avx = ext;
+    u->pfx_rex = EVEX_REX(u->evex);
+    u->vector_mask_register = resolve_reg(u, T_K, EVEX_aaa(u->evex));
+}
+ 
 /*
  * MVEX prefixes are 4 bytes long
  *
@@ -412,7 +449,14 @@ static int get_prefixes( struct ud* u )
                 u->mvex[1] = inp_curr(u);
                 inp_next(u);
                 u->mvex[2] = inp_curr(u);
-                decode_mvex(u);
+
+                if IS_EVEX(u->mvex) {
+                    PEBIL_DEBUG("\t\tEVEX prefix found %hhx", curr);
+                    decode_evex(u);
+                } else {
+                    PEBIL_DEBUG("\t\tMVEX prefix found %hhx", curr);
+                    decode_mvex(u);
+                }
 
                 inp_next(u); // will be rewound
                 have_pfx = 0; // end of prefixes
@@ -484,6 +528,9 @@ static int search_itab( struct ud * u )
     if ( u->error ) 
         return -1;
     curr = inp_curr(u); 
+    PEBIL_DEBUG("\t1st byte opcode: %hhx", curr);
+
+    gen_hex(u); PEBIL_DEBUG("\tAChex: %hhx %hhx %hhx %hhx ...\n", u->insn_bytes[0], u->insn_bytes[1], u->insn_bytes[2], u->insn_bytes[3]);
 
     /* resolve xchg, nop, pause crazyness */
     if ( !P_MVEX(u->pfx_insn) && !P_AVX(u->pfx_insn) && 0x90 == curr ) {
@@ -595,7 +642,8 @@ static int search_itab( struct ud * u )
 
                 /* 0F 3A */
                 case 0x0366: tableid = ITAB__AVX__PFX_SSE66__0F__OP_0F__3BYTE_3A__REG; break;
-                case 0x03F2: assert(0);//tableid = ITAB__AVX_C4__PFX_SSEF2__0F__OP_0F__3BYTE_3A__REG;
+                case 0x03F2: tableid = ITAB__AVX__PFX_SSEF2__0F__OP_0F__3BYTE_3A__REG; break;
+                //case 0x03F2: assert(0);//tableid = ITAB__AVX_C4__PFX_SSEF2__0F__OP_0F__3BYTE_3A__REG;
                 case 0x03F3: assert(0);//tableid = ITAB__AVX_C4__PFX_SSEF3__0F__OP_0F__3BYTE_3A__REG;
                 case 0x0300: assert(0);//tableid = ITAB__AVX_C4__0F__OP_0F__3BYTE_3A__REG;
                     break;
@@ -639,6 +687,8 @@ static int search_itab( struct ud * u )
 
     // MVEX tables
     } else if(P_MVEX(u->pfx_insn)) {
+ 
+        PEBIL_DEBUG("\tMVEX Table.");
         if( u->error ) return -1;
 
         int tableid = 0xdeadbeef;
@@ -654,7 +704,7 @@ static int search_itab( struct ud * u )
             // 0F 38
             case 0x0266: tableid = ITAB__MVEX__PFX_SSE66__0F__OP_0F__3BYTE_38__REG; break;
             case 0x02F2: assert(0); break;
-            case 0x02F3: assert(0); break;
+            case 0x02F3: tableid = ITAB__MVEX__PFX_SSEF3__0F__OP_0F__3BYTE_38__REG; break; //assert(0); break;
             case 0x0200: tableid = ITAB__MVEX__0F__OP___3BYTE_38__REG; break;
 
             // 0F 3A
@@ -682,15 +732,16 @@ static int search_itab( struct ud * u )
 
 search:
 
-    /*
-    if(ud_itab_list[table][index].mnemonic == UD_Iinvalid) {
-        gen_hex(u);
-        PEBIL_WARN("Found invalid instruction\n");
-        PEBIL_WARN("  hex: %hhx %hhx %hhx %hhx %hhx ...\n", u->insn_bytes[0], u->insn_bytes[1], u->insn_bytes[2], u->insn_bytes[3], u->insn_bytes[4]);
-        PEBIL_WARN("  opcode: %hhx\n", curr);
-        PEBIL_WARN("  table prefix: 0x%x\n", (MVEX_M4(u->mvex[0]) << 8) | (u->pfx_avx));
-    }
-*/
+    PEBIL_DEBUG("\t\t Looking up table: %d  with index %d", table, index);
+ //   if(ud_itab_list[table][index].mnemonic == UD_Iinvalid) {
+ //       gen_hex(u);
+ //       PEBIL_WARN("Found invalid instruction\n");
+ //       PEBIL_WARN("  hex: %hhx %hhx %hhx %hhx %hhx ...\n", u->insn_bytes[0], u->insn_bytes[1], u->insn_bytes[2], u->insn_bytes[3], u->insn_bytes[4]);
+ //       PEBIL_WARN("  opcode: %hhx\n", curr);
+ //       PEBIL_WARN("  table prefix: 0x%x\n", (MVEX_M4(u->mvex[0]) << 8) | (u->pfx_avx));
+ //       PEBIL_WARN("  index= %d\n", index);
+ //   }
+
     e = & ud_itab_list[ table ][ index ];
 
     /* if mnemonic constant is a standard instruction constant
@@ -712,12 +763,14 @@ search:
     switch ( e->mnemonic )
     {
     case UD_Igrp_reg:
+        PEBIL_DEBUG("\t\tmnemonic = UD_Igrp_reg\n");
         peek     = inp_peek( u );
         did_peek = 1;
         index    = MODRM_REG( peek );
         break;
 
     case UD_Igrp_mod:
+        PEBIL_DEBUG("\t\tmnemonic = UD_Igrp_mod\n");
         peek     = inp_peek( u );
         did_peek = 1;
         index    = MODRM_MOD( peek );
@@ -728,6 +781,7 @@ search:
         break;
 
     case UD_Igrp_rm:
+        PEBIL_DEBUG("\t\tmnemonic = UD_Igrp_rm\n");
         curr     = inp_next( u );
         did_peek = 0;
         if ( u->error )
@@ -736,6 +790,7 @@ search:
         break;
 
     case UD_Igrp_x87:
+        PEBIL_DEBUG("\t\tmnemonic = UD_Igrp_x87\n");
         curr     = inp_next( u );
         did_peek = 0;
         if ( u->error )
@@ -744,6 +799,7 @@ search:
         break;
 
     case UD_Igrp_osize:
+        PEBIL_DEBUG("\t\tmnemonic = UD_Igrp_osize\n");
         if ( u->opr_mode == 64 ) 
             index = ITAB__MODE_INDX__64;
         else if ( u->opr_mode == 32 ) 
@@ -753,6 +809,7 @@ search:
         break;
  
     case UD_Igrp_asize:
+        PEBIL_DEBUG("\t\tmnemonic = UD_Igrp_asize\n");
         if ( u->adr_mode == 64 ) 
             index = ITAB__MODE_INDX__64;
         else if ( u->adr_mode == 32 ) 
@@ -762,6 +819,7 @@ search:
         break;               
 
     case UD_Igrp_mode:
+        PEBIL_DEBUG("\t\tmnemonic = UD_Igrp_mode\n");
         if ( u->dis_mode == 64 ) 
             index = ITAB__MODE_INDX__64;
         else if ( u->dis_mode == 32 ) 
@@ -797,6 +855,22 @@ search:
             assert(0);
         }
         break;
+    case UD_Igrp_l:
+        //if(P_MVEX(u->pfx_insn)) {
+        //    index    =  MVEX_L(u->mvex[1]);
+        //} else if(u->pfx_insn == 0xC4) {
+        if(u->pfx_insn == 0xC4) {
+            index = VEX_L(u->avx_vex[0]);
+        } else if(u->pfx_insn == 0xC5) {
+            index = VEX_L(u->avx_vex[0]);
+        } else {
+        gen_hex(u);
+        fprintf(stderr, "Unknown prefix using L group\n");
+        fprintf(stderr, "  hex: %hhx %hhx %hhx %hhx %hhx ...\n", u->insn_bytes[0], u->insn_bytes[1], u->insn_bytes[2], u->insn_bytes[3], u->insn_bytes[4]);
+ 
+            assert(0);
+        }
+        break;
 
 
     default:
@@ -817,9 +891,11 @@ found_entry:
 
 static unsigned int resolve_operand_size( const struct ud * u, unsigned int s )
 {
+    PEBIL_DEBUG("\t\tresolve_operand_size: s = %d", s);
     switch ( s ) 
     {
     case SZ_NA:
+        PEBIL_DEBUG("\t\tresolve_operand_size: s = SZ_NA");
         if(u->mnemonic == UD_Ilea){ // instructions that use O_M and get operand from adr_mode -- move this elsewhere when instructions are complete
             return u->adr_mode; // FIXME
         }
@@ -832,12 +908,15 @@ static unsigned int resolve_operand_size( const struct ud * u, unsigned int s )
            u->mnemonic != UD_Inop) {
             //fprintf(stderr, "Unknown operand size of instruction %s\n", ud_lookup_mnemonic(u->mnemonic));
         }
+        PEBIL_DEBUG("\t\tresolve_operand_size: u->avx_vex[0] = %d", u->avx_vex[0]);
         if(u->avx_vex[0]) {
+            PEBIL_DEBUG("\t\tresolve_operand_size: u->pfx_size = %d", u->pfx_size);
             if(u->pfx_size) return 256;
             else return 128;
         }
         return s;
     case SZ_V:
+        //PEBIL_DEBUG("\t\tresolve_operand_size: s = SZ_V");
         return ( u->opr_mode );
     case SZ_Z:  
         return ( u->opr_mode == 16 ) ? 16 : 32;
@@ -848,7 +927,25 @@ static unsigned int resolve_operand_size( const struct ud * u, unsigned int s )
     case SZ_RDQ:
         return ( u->dis_mode == 64 ) ? 64 : 32;
     case SZ_X:
+        //PEBIL_DEBUG("\t\tresolve_operand_size: s = SZ_X");
+        PEBIL_DEBUG("\t\tresolve_operand_size: u->avx_vex[0] = %u, prefix = %u,  VEXLIG = %u, VEX_L = %u, return = %u", u->avx_vex[0], u->itab_entry->prefix, P_VEXLIG(u->itab_entry->prefix), VEX_L(u->avx_vex[0]), VEX_L(u->avx_vex[0]) && (!P_VEXLIG(u->itab_entry->prefix)));
         return VEX_L(u->avx_vex[0]) && (!P_VEXLIG(u->itab_entry->prefix)) ? SZ_Y : SZ_X;
+    case SZ_XZ:
+        if(IS_EVEX(u->evex)) {
+           // if(EVEX_B(u->evex) == 1)
+           // {
+           //     PEBIL_WARN("SAE bit set for %s. Assuming 512 bit vector length.\n", ud_lookup_mnemonic(u->mnemonic));
+           //     return 512;
+           // }
+            char size = EVEX_LL(u->evex);
+            if(size == 0) return 128;
+            else if(size == 1) return 256;
+            else return 512;
+            //else if(size == 2) return 512;
+            //else assert(0);
+        } else {
+            return s;
+        }
     default:
         return s;
     }
@@ -986,6 +1083,7 @@ static void decode_vex_vvvv(struct ud* u,
         unsigned char type)
 {
     uint8_t vex = u->avx_vex[0];
+    PEBIL_DEBUG("\tdecode_vex_vvvv: size = %d, type = %u", size, type);
 
     if(type == T_XMM && VEX_L(vex)) {
         type = T_YMM;
@@ -1004,11 +1102,49 @@ static void decode_vex_vvvv(struct ud* u,
     op->position = u->pfx_insn == 0xC4 ? 2 : 1;
 }
 
+static void decode_evex_vvvv(
+        struct ud* u,
+        struct ud_operand* op,
+        unsigned int size,
+        unsigned char type)
+{
+    if(type == T_ZMM) {
+        int lencontrol = EVEX_LL(u->evex);
+        //if(EVEX_B(u->evex) == 1)
+        //{
+            //PEBIL_WARN("SAE bit set for %s. Assuming 512 bit vector length.\n", ud_lookup_mnemonic(u->mnemonic));
+        //    type = T_ZMM;
+        //    size = 512;
+        //} else 
+        if(lencontrol == 0) {
+            type = T_XMM;
+            size = 128;
+        } else if(lencontrol == 1) {
+            type = T_YMM;
+            size = 256;
+        } else {
+        //} else if(lencontrol == 2) {
+            type = T_ZMM;
+            size = 512;
+        }
+        //} else assert(0);
+    }
+    enum ud_type reg = resolve_reg(u, type, EVEX_vp(u->evex) << 4 | EVEX_vvvv(u->evex));
+    op->type = UD_OP_REG;
+    op->base = reg;
+    op->size = size;
+    op->position = 2;
+}
+
 static void decode_mvex_vvvv(struct ud* u,
         struct ud_operand* op,
         unsigned int size,
         unsigned char type)
 {
+    if(IS_EVEX(u->evex)) {
+        decode_evex_vvvv(u, op, size, type);
+        return;
+    }
     enum ud_type reg = resolve_reg(u, type, (MVEX_VP(u->mvex[2]) << 4) | MVEX_VVVV(u->mvex[1]));
 
     op->type = UD_OP_REG;
@@ -1016,7 +1152,6 @@ static void decode_mvex_vvvv(struct ud* u,
     op->size = size;
     op->position = 2;
 }
-
 
 /* -----------------------------------------------------------------------------
  * clear_operand() - clear operand pointer 
@@ -1056,6 +1191,99 @@ decode_imm(struct ud* u, unsigned int s, struct ud_operand *op)
  * decode_modrm_rm() - Decodes ModRM.r/m
  * -----------------------------------------------------------------------------
  */
+// Decodes modrm for vector memory operands (i.e. gather-scatter)
+static void
+decode_vector_modrm_rm(struct ud* u,
+        struct modrm* modrm,
+        struct ud_operand* op,
+        unsigned int size,
+        unsigned char type)
+{
+    unsigned char modrm_byte = get_modrm(u, modrm);
+    op->position = modrm->position;
+
+    /* get mod, r/m and reg fields */
+    unsigned char mod = MODRM_MOD(modrm_byte);
+    unsigned char rm  = (REX_B(u->pfx_rex) << 3) | MODRM_RM(modrm_byte);
+    assert(mod != 3);
+    assert((rm & 7) == 4);
+
+    /* get offset type */
+    if (mod == 1)
+        op->offset = 8;
+    else if (mod == 2)
+        op->offset = 32;
+    else if (mod == 0 && (rm & 7) == 5) {           
+        op->base = UD_R_RIP;
+        op->offset = 32;
+    } else  op->offset = 0;
+
+
+    inp_next(u);
+    op->type = UD_OP_MEM;
+    op->size = resolve_operand_size(u, size);
+
+    op->scale = SIB_SCALE(inp_curr(u));
+    // TODO Index vector not necessarily a 512-bit AVX register!
+    // example: vgatherdpd
+    // For now, hard-coding mnemonics where index reg size not based
+    // on L'L (op->size)
+    unsigned int indexType = T_ZMM;
+    if ( u->mnemonic == UD_Ivpgatherdq || u->mnemonic == UD_Ivgatherdpd || 
+         u->mnemonic == UD_Ivpscatterdq || u->mnemonic == UD_Ivscatterdpd ||
+         u->mnemonic == UD_Ivscatterqps ) 
+    {
+      if(op->size == SZ_X)
+        indexType = T_XMM;
+      else if (op->size == SZ_Y)
+        indexType = T_XMM;
+      else
+        indexType = T_YMM;
+    }
+    else {
+      if(op->size == SZ_X)
+        indexType = T_XMM;
+      else if (op->size == SZ_Y)
+        indexType = T_YMM;
+    }
+    //op->index = UD_R_ZMM0 +
+    //    ((MVEX_VP(u->mvex[2]) << 4) | (MVEX_X(u->mvex[0]) << 3) | SIB_I(inp_curr(u)));
+    op->index = resolve_reg(u, indexType, ((MVEX_VP(u->mvex[2]) << 4) | (MVEX_X(u->mvex[0]) << 3) | SIB_I(inp_curr(u))));
+    op->base = UD_R_RAX + ((MVEX_B(u->mvex[0]) << 3) | SIB_B(inp_curr(u)));
+
+    /* special conditions for base reference */
+    if (op->index == UD_R_RSP) {
+        assert(0);
+        op->index = UD_NONE;
+        op->scale = UD_NONE;
+    }
+
+    if (op->base == UD_R_RBP || op->base == UD_R_R13) {
+        if (mod == 0) 
+            op->base = UD_NONE;
+        if (mod == 1)
+            op->offset = 8;
+        else op->offset = 32;
+    }
+    
+  /* extract offset, if any */
+  switch(op->offset) {
+    case 8 :
+      if(u->mvex[0] != 0) {
+        uint8_t acc = get_membytes_accessed(u);
+        int8_t lit = (int8_t)inp_uint8(u);
+        op->lval.sword = acc*lit;
+      } else {
+        op->lval.ubyte = inp_uint8(u);
+      }
+      break;
+    case 16: op->lval.uword  = inp_uint16(u);  break;
+    case 32: op->lval.udword = inp_uint32(u); break;
+    case 64: op->lval.uqword = inp_uint64(u); break;
+    default: break;
+  }
+}
+
 static void 
 decode_modrm_rm(struct ud* u,
         struct modrm* modrm,
@@ -1067,6 +1295,7 @@ decode_modrm_rm(struct ud* u,
   op->position = modrm->position;
 
   unsigned char mod, rm;
+  PEBIL_DEBUG("\tdecode_modrm_rm: size = %d, type = %u, modrm_byte = %u", size, type, modrm_byte);
 
 
   /* get mod, r/m and reg fields */
@@ -1078,14 +1307,81 @@ decode_modrm_rm(struct ud* u,
   /* if mod is 11b, then the UD_R_m specifies a gpr/mmx/sse/control/debug */
   if (mod == 3) {
     op->type = UD_OP_REG;
+    if ( type == T_XMM || type == T_ZMM )
+    {
+      if(op->size == SZ_X)
+        type = T_XMM;
+      else if(op->size == SZ_Y)
+        type = T_YMM;
+      else if(op->size == SZ_XZ)
+        type = T_ZMM;
+//      else assert(0);
+    }
+
+    // TODO Conversion don't always have the same operand sizes
+    // example: vcvtdq2pd
+    // For now, hard-coding mnemonics where rm size not based
+    // on L'L (op->size)
+    if ( u->mnemonic == UD_Ivcvtdq2pd || u->mnemonic == UD_Ivcvtph2ps || 
+         u->mnemonic == UD_Ivcvtps2qq || u->mnemonic == UD_Ivcvtps2uqq ||
+         u->mnemonic == UD_Ivcvtps2pd || u->mnemonic == UD_Ivcvttps2qq ||
+         u->mnemonic == UD_Ivcvttps2uqq || u->mnemonic == UD_Ivcvtudq2pd ||
+         u->mnemonic == UD_Ivcvtps2ph ||
+         u->mnemonic == UD_Ivpmovqd || u->mnemonic == UD_Ivpmovsqd ||
+         u->mnemonic == UD_Ivpmovusqd || u->mnemonic == UD_Ivpmovdw ||
+         u->mnemonic == UD_Ivpmovsdw || u->mnemonic == UD_Ivpmovusdw ||
+         u->mnemonic == UD_Ivpmovwb || u->mnemonic == UD_Ivpmovswb ||
+         u->mnemonic == UD_Ivpmovuswb || u->mnemonic == UD_Ivpmovsxwd ||
+         u->mnemonic == UD_Ivpmovsxdq || u->mnemonic == UD_Ivpmovzxwd ||
+         u->mnemonic == UD_Ivpmovzxdq ||
+         u->mnemonic == UD_Ivinserti128 || u->mnemonic == UD_Ivinserti32x8 ||
+         u->mnemonic == UD_Ivinserti64x4 || u->mnemonic == UD_Ivinsertf128 ||
+         u->mnemonic == UD_Ivinsertf32x8 || u->mnemonic == UD_Ivinsertf64x4 )
+    {
+      if ( type == T_XMM || type == T_YMM || type == T_ZMM )
+      {
+        if(op->size == SZ_X)
+          type = T_XMM;
+        else if (op->size == SZ_Y)
+          type = T_XMM;
+        else
+          type = T_YMM;
+      }
+    }
+    // TODO Broadcasts don't always have the same operand sizes
+    // TODO: Neither do vpmov*
+    if ( u->mnemonic == UD_Ivbroadcastsd || u->mnemonic == UD_Ivbroadcastss || 
+         u->mnemonic == UD_Ivbroadcastf32x2 ||
+         u->mnemonic == UD_Ivpbroadcastb || u->mnemonic == UD_Ivpbroadcastq ||
+         u->mnemonic == UD_Ivpbroadcastw || u->mnemonic == UD_Ivpbroadcastd ||
+         u->mnemonic == UD_Ivbroadcasti32x2 ||
+         u->mnemonic == UD_Ivpmovqb || u->mnemonic == UD_Ivpmovsqb ||
+         u->mnemonic == UD_Ivpmovusqb || u->mnemonic == UD_Ivpmovqw ||
+         u->mnemonic == UD_Ivpmovsqw || u->mnemonic == UD_Ivpmovusqw ||
+         u->mnemonic == UD_Ivpmovdb || u->mnemonic == UD_Ivpmovsdb ||
+         u->mnemonic == UD_Ivpmovusdb || u->mnemonic == UD_Ivpmovsxbd ||
+         u->mnemonic == UD_Ivpmovsxbq || u->mnemonic == UD_Ivpmovsxwq ||
+         u->mnemonic == UD_Ivpmovzxbd || u->mnemonic == UD_Ivpmovzxbq ||
+         u->mnemonic == UD_Ivpmovzxwq ||
+         u->mnemonic == UD_Ivinserti32x4 || u->mnemonic == UD_Ivinserti64x2 ||
+         u->mnemonic == UD_Ivinsertf32x4 || u->mnemonic == UD_Ivinsertf64x2 )
+     
+    {
+      if ( type == T_XMM || type == T_YMM || type == T_ZMM )
+        type = T_XMM;
+    }
+
     if (type ==  T_GPR)
         op->base = decode_gpr(u, op->size, rm);
-    else
-        op->base = resolve_reg(u, type, (REX_B(u->pfx_rex) << 3) | (rm&7));
+    else {
+        op->base = resolve_reg(u, type, (REX_X(u->pfx_rex) << 4) | (REX_B(u->pfx_rex) << 3) | (rm & 7));
+    }
   } 
   /* else its memory addressing */  
   else {
     op->type = UD_OP_MEM;
+    PEBIL_DEBUG("\tdecode_modrm_rm: adr_mode = %d", u->adr_mode);
+    PEBIL_DEBUG("\tdecode_modrm_rm: error: %d", u->error);
 
     /* 64bit addressing */
     if (u->adr_mode == 64) {
@@ -1112,6 +1408,8 @@ decode_modrm_rm(struct ud* u,
 
             /* special conditions for base reference */
             if (op->index == UD_R_RSP) {
+                PEBIL_DEBUG("\t\tSpecial condition for base reference");
+                PEBIL_DEBUG("\t\tdecode_modrm_rm: error: %d", u->error);
                 op->index = UD_NONE;
                 op->scale = UD_NONE;
             }
@@ -1207,7 +1505,6 @@ decode_modrm_rm(struct ud* u,
     default: break;
   }
 
-
 }
 
 /* -----------------------------------------------------------------------------
@@ -1226,21 +1523,135 @@ decode_modrm_reg(struct ud* u,
 
   unsigned char reg;
 
+  PEBIL_DEBUG("\tdecode_modrm_reg: reg_size = %d, reg_type = %u, modrm_byte = %u", reg_size, reg_type, modrm_byte);
   reg = (REX_R(u->pfx_rex) << 3) | MODRM_REG(modrm_byte);
+
   if(P_MVEX(u->pfx_insn)) {
-    reg |= MVEX_RP(u->mvex[0]) << 4;
+    if(IS_EVEX(u->mvex)) {
+        reg |= EVEX_RP(u->evex) << 4;
+    } else {
+        reg |= MVEX_RP(u->mvex[0]) << 4;
+    }
   }
 
   op->type = UD_OP_REG;
   op->size = resolve_operand_size(u, reg_size);
+
+  if ( reg_type == T_XMM || reg_type == T_ZMM )
+  {
+    if(op->size == SZ_X)
+      reg_type = T_XMM;
+    else if(op->size == SZ_Y)
+      reg_type = T_YMM;
+    else if(op->size == SZ_XZ)
+      reg_type = T_ZMM;
+    //else assert(0);
+  }
+
+  // TODO Conversion don't always have the same operand sizes
+  // example: vcvtdq2pd
+  // For now, hard-coding mnemonics where reg size not based
+  // on L'L (op->size)
+  if ( u->mnemonic == UD_Ivcvtpd2dq || u->mnemonic == UD_Ivcvtpd2ps || 
+       u->mnemonic == UD_Ivcvtpd2udq || u->mnemonic == UD_Ivcvtqq2ps ||
+       u->mnemonic == UD_Ivcvttpd2dq || u->mnemonic == UD_Ivcvttpd2udq ||
+       u->mnemonic == UD_Ivcvtuqq2ps ) 
+  {
+    if ( reg_type == T_XMM || reg_type == T_YMM || reg_type == T_ZMM )
+    {
+      if(op->size == SZ_X)
+        reg_type = T_XMM;
+      else if (op->size == SZ_Y)
+        reg_type = T_XMM;
+      else
+        reg_type = T_YMM;
+    }
+  }
 
   if (reg_type == T_GPR) 
       op->base = decode_gpr(u, op->size, reg);
   else
       op->base = resolve_reg(u, reg_type, reg);
 
+  PEBIL_DEBUG("\tdecode_modrm_reg: reg = %u, size = %u", reg, op->size);
 }
 
+
+/* -----------------------------------------------------------------------------
+ * decode_modrm_sae() - decode operand in context of EVEX.b
+ * -----------------------------------------------------------------------------
+ */
+static void decode_modrm_sae(
+        struct ud* u,
+        struct modrm* modrm,
+        struct ud_operand* op,
+        unsigned int size,
+        unsigned char type,
+        unsigned char context)
+{
+  unsigned char modrm_byte = get_modrm(u, modrm);
+  op->position = modrm->position;
+
+  unsigned char mod, rm;
+  /* get mod, r/m and reg fields */
+  mod = MODRM_MOD(modrm_byte);
+  rm  = (REX_B(u->pfx_rex) << 3) | MODRM_RM(modrm_byte);
+
+  // Context only matters if SAE bit is high
+  if(EVEX_b(u->evex) == 1)
+  {
+    /* if mod is 11b, then the UD_R_m specifies a gpr/mmx/sse/control/debug */
+    if (mod == 3) {
+      if(context == B_ER)
+      {
+        // Vector length is 512
+        op->size = 512;
+        op->type = UD_OP_REG;
+        if (type ==  T_GPR)
+            op->base = decode_gpr(u, op->size, rm);
+        else
+            op->base = resolve_reg(u, T_ZMM, (REX_X(u->pfx_rex) << 4) | (REX_B(u->pfx_rex) << 3) | (rm&7));
+
+        // Need to redo size and base of previous operands
+        int opNum = 0;
+        for (opNum = 0; opNum < 4; opNum++)
+        { 
+          // If we hit this operand, we're done.
+          if (&u->operand[opNum] == op)
+            break;
+          if(u->operand[opNum].type == UD_OP_REG)
+          {
+            ud_type_t oldType = u->operand[opNum].base;
+            PEBIL_DEBUG("\tOperand %d: oldType = %d, ZMM = %d, YMM = %d, XMM = %d", opNum, oldType, UD_R_ZMM0, UD_R_YMM0, UD_R_XMM0);
+            u->operand[opNum].size = 512;
+            //For now, assume that it was xmm, ymm, or zmm before
+            if(((int64_t)oldType - (int64_t)UD_R_ZMM0) >= 0) 
+              u->operand[opNum].base = resolve_reg(u, T_ZMM, (int64_t)oldType - (int64_t)UD_R_ZMM0);
+            else if((int64_t)oldType - (int64_t)(UD_R_YMM0) >= 0) 
+              u->operand[opNum].base = resolve_reg(u, T_ZMM, (int64_t)oldType - (int64_t)UD_R_YMM0);
+            else if((int64_t)oldType - (int64_t)(UD_R_XMM0) >= 0) 
+              u->operand[opNum].base = resolve_reg(u, T_ZMM, (int64_t)oldType - (int64_t)UD_R_XMM0);
+            else
+              assert(0);
+          }
+        }
+      }
+      else
+      {
+        PEBIL_WARN("decode_modrm_sae: Context not implemented");
+      }
+    } 
+    /* else its memory addressing */  
+    else {
+      decode_modrm_rm(u, modrm, op, size, type);
+    }
+        
+  }
+  else
+  {
+    decode_modrm_rm(u, modrm, op, size, type);
+  }
+}
 
 /* -----------------------------------------------------------------------------
  * decode_o() - Decodes offset
@@ -1292,10 +1703,12 @@ static int disasm_operand(register struct ud* u,
       }
       // fallthrough
     case OP_E:
+      PEBIL_DEBUG("\tOperand is type OP_E");
       decode_modrm_rm(u, modrm, operand, size, T_GPR);
       break;
 
     case OP_G:
+      PEBIL_DEBUG("\tOperand is type OP_G");
       decode_modrm_reg(u, modrm, operand, size, T_GPR); 
       break;
 
@@ -1396,10 +1809,12 @@ static int disasm_operand(register struct ud* u,
       break;
 
     case OP_V:
+      PEBIL_DEBUG("\tOperand is type OP_V");
       decode_modrm_reg(u, modrm, operand, size, T_XMM);
       break;
 
     case OP_W:
+      PEBIL_DEBUG("\tOperand is type OP_W");
       decode_modrm_rm(u, modrm, operand, size, T_XMM);
       break;
 
@@ -1434,36 +1849,48 @@ static int disasm_operand(register struct ud* u,
       break;
 
     case OP_X:
-      decode_vex_vvvv(u, operand, size, T_XMM);
+      PEBIL_DEBUG("\tOperand is type OP_X");
+      if(IS_EVEX(u->mvex)) {
+          decode_evex_vvvv(u, operand, size, T_XMM);
+      } else {
+          decode_vex_vvvv(u, operand, size, T_XMM);
+      }
       break;
 
     case OP_ZR:
+      PEBIL_DEBUG("\tOperand is type OP_ZR");
       decode_modrm_reg(u, modrm, operand, size, T_ZMM);
-      assert(operand->size == SZ_XZ);
       break;
 
     case OP_ZM:
+      PEBIL_DEBUG("\tOperand is type OP_ZM");
       assert(size == SZ_XZ);
       if(MODRM_MOD(get_modrm(u, modrm)) == 3) {
           u->error = 1;
           fprintf(stderr, "WARNING: POSSIBLE INCORRECT DECODING of ZM operand\n");
       }
       decode_modrm_rm(u, modrm, operand, size, T_ZMM);
-      assert(operand->size == SZ_XZ);
       break;
 
     case OP_ZRM:
+      PEBIL_DEBUG("\tOperand is type OP_ZRM");
       decode_modrm_rm(u, modrm, operand, size, T_ZMM);
-      assert(operand->size == SZ_XZ);
       break;
 
+    case OP_ZRMER:
+      PEBIL_DEBUG("\tOperand is type OP_ZRMER");
+      //decode_modrm_rm(u, modrm, operand, size, T_ZMM);
+      decode_modrm_sae(u, modrm, operand, size, T_ZMM, B_ER);
+      break;
+
+
     case OP_ZV:
-      assert(P_MVEX(u->pfx_insn));
+      PEBIL_DEBUG("\tOperand is type OP_ZV");
       decode_mvex_vvvv(u, operand, size, T_ZMM);
       break;
 
     case OP_ZVM:
-      decode_modrm_rm(u, modrm, operand, size, T_ZMM);
+      decode_vector_modrm_rm(u, modrm, operand, size, T_ZMM);
       break;
 
     case OP_KR:
@@ -1497,6 +1924,8 @@ static int disasm_operands(register struct ud* u)
   struct modrm modrm;
   clear_modrm(&modrm);
 
+  PEBIL_DEBUG("Disassemble Operands");
+
   u->operand[0].type = UD_NONE;
   u->operand[1].type = UD_NONE;
   u->operand[2].type = UD_NONE;
@@ -1505,15 +1934,19 @@ static int disasm_operands(register struct ud* u)
   int retval = 0;
 
   if (u->itab_entry->operand1.type == UD_NONE) return retval;
+  PEBIL_DEBUG("Operand 1:");
   retval |= disasm_operand(u, &modrm, &u->operand[0], u->itab_entry->operand1.type, u->itab_entry->operand1.size);
 
   if( u->itab_entry->operand2.type == UD_NONE) return retval;
+  PEBIL_DEBUG("Operand 2:");
   retval |= disasm_operand(u, &modrm, &u->operand[1], u->itab_entry->operand2.type, u->itab_entry->operand2.size);
 
   if( u->itab_entry->operand3.type == UD_NONE) return retval;
+  PEBIL_DEBUG("Operand 3:");
   retval |= disasm_operand(u, &modrm, &u->operand[2], u->itab_entry->operand3.type, u->itab_entry->operand3.size);
 
   if( u->itab_entry->operand4.type == UD_NONE) return retval;;
+  PEBIL_DEBUG("Operand 4:");
   retval |= disasm_operand(u, &modrm, &u->operand[3], u->itab_entry->operand4.type, u->itab_entry->operand4.size);
 
   return retval;

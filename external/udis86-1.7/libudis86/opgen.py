@@ -27,6 +27,7 @@ spl_mnm_types = [   'totaltypes', \
                     'grp_asize',  \
                     'grp_mod',    \
                     'grp_w',      \
+                    'grp_l',      \
                     'none'        \
                 ]
 
@@ -183,6 +184,7 @@ operand_dict = {
     "ZR"       : [    "OP_ZR"       , "SZ_XZ"     ], # zmm in R':R:reg
     "ZM"       : [    "OP_ZM"       , "SZ_XZ"     ], # Mem in ModRm.rm
     "ZRM"      : [    "OP_ZRM"      , "SZ_XZ"     ], # zmm/m in X:B:ModRm.rm
+    "ZRMER"    : [    "OP_ZRMER"    , "SZ_XZ"     ], # zmm/m{er} in X:B:ModRm.rm
     "ZV"       : [    "OP_ZV"       , "SZ_XZ"     ], # zmm in V'vvvv
     "ZVM"      : [    "OP_ZVM"      , "SZ_XZ"     ], # Vector memory addresses
 
@@ -558,6 +560,14 @@ for node in tlNode.childNodes:
                 table_name = tables[table_name][table_index]['name']
                 table_index = "%02X" % int(op[3:4])
                 table_size = 2
+            elif op[0:3] == "/L=": # L=0 or 1 for now
+                tables[table_name][table_index] = { \
+                    'type' : 'grp_l', \
+                    'name' : "%s__op_%s__l" % (table_name, table_index) \
+                }
+                table_name = tables[table_name][table_index]['name']
+                table_index = "%02X" % int(op[3:4])
+                table_size = 2
             elif op[0:1] == '/':
                 tables[table_name][table_index] = { \
                     'type' : 'grp_reg',  \
@@ -582,7 +592,7 @@ for node in tlNode.childNodes:
             mktab(table_name, table_size)
 
         m = mnemonic
-        if table_avxdone > 0:
+        if table_avxdone > 0 and not m.startswith('v'):
             m = 'v' + m
         insert_mnm(m)
 

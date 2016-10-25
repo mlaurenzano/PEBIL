@@ -458,20 +458,41 @@ bool X86Instruction::isScatterGatherOp(){
     switch(GET(mnemonic)){
         case UD_Ivgatherdpd:
         case UD_Ivgatherdps:
+        case UD_Ivgatherqpd:
+        case UD_Ivgatherqps:
         case UD_Ivgatherpf0dps:
+        case UD_Ivgatherpf0qps:
+        case UD_Ivgatherpf0dpd:
+        case UD_Ivgatherpf0qpd:
         case UD_Ivgatherpf0hintdpd:
         case UD_Ivgatherpf0hintdps:
         case UD_Ivgatherpf1dps:
+        case UD_Ivgatherpf1qps:
+        case UD_Ivgatherpf1dpd:
+        case UD_Ivgatherpf1qpd:
         case UD_Ivpgatherdd:
         case UD_Ivpgatherdq:
+        case UD_Ivpgatherqd:
+        case UD_Ivpgatherqq:
 
         case UD_Ivscatterdpd:
+        case UD_Ivscatterdps:
+        case UD_Ivscatterqpd:
+        case UD_Ivscatterqps:
         case UD_Ivscatterpf0dps:
+        case UD_Ivscatterpf0qps:
+        case UD_Ivscatterpf0dpd:
+        case UD_Ivscatterpf0qpd:
         case UD_Ivscatterpf0hintdpd:
         case UD_Ivscatterpf0hintdps:
         case UD_Ivscatterpf1dps:
+        case UD_Ivscatterpf1qps:
+        case UD_Ivscatterpf1dpd:
+        case UD_Ivscatterpf1qpd:
         case UD_Ivpscatterdd:
         case UD_Ivpscatterdq:
+        case UD_Ivpscatterqd:
+        case UD_Ivpscatterqq:
             return true;
      }
      return false;
@@ -481,8 +502,20 @@ bool X86Instruction::isVectorMaskOp(){
     switch(GET(mnemonic)){
         case UD_Ijknzd:
         case UD_Ijkzd:
+        case UD_Ikaddw:
+        case UD_Ikaddb:
+        case UD_Ikaddq:
+        case UD_Ikaddd:
         case UD_Ikand:
+        case UD_Ikandw:
+        case UD_Ikandb:
+        case UD_Ikandq:
+        case UD_Ikandd:
         case UD_Ikandn:
+        case UD_Ikandnw:
+        case UD_Ikandnb:
+        case UD_Ikandnq:
+        case UD_Ikandnd:
         case UD_Ikandnr:
         case UD_Ikconcath:
         case UD_Ikconcatl:
@@ -490,11 +523,46 @@ bool X86Instruction::isVectorMaskOp(){
         case UD_Ikmerge2l1h:
         case UD_Ikmerge2l1l:
         case UD_Ikmov:
+        case UD_Ikmovw:
+        case UD_Ikmovb:
+        case UD_Ikmovq:
+        case UD_Ikmovd:
         case UD_Iknot:
+        case UD_Iknotw:
+        case UD_Iknotb:
+        case UD_Iknotq:
+        case UD_Iknotd:
         case UD_Ikor:
+        case UD_Ikorw:
+        case UD_Ikorb:
+        case UD_Ikorq:
+        case UD_Ikord:
         case UD_Ikortest:
+        case UD_Ikortestw:
+        case UD_Ikortestb:
+        case UD_Ikortestq:
+        case UD_Ikortestd:
+        case UD_Ikshiftlw:
+        case UD_Ikshiftlb:
+        case UD_Ikshiftlq:
+        case UD_Ikshiftld:
+        case UD_Ikshiftrw:
+        case UD_Ikshiftrb:
+        case UD_Ikshiftrq:
+        case UD_Ikshiftrd:
+        case UD_Ikunpckbw:
+        case UD_Ikunpckwd:
+        case UD_Ikunpckdq:
         case UD_Ikxnor:
+        case UD_Ikxnorw:
+        case UD_Ikxnorb:
+        case UD_Ikxnorq:
+        case UD_Ikxnord:
         case UD_Ikxor:
+        case UD_Ikxorw:
+        case UD_Ikxorb:
+        case UD_Ikxorq:
+        case UD_Ikxord:
             return true;
     }
     return false;
@@ -2060,8 +2128,8 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
         PRINT_ERROR("Problem doing instruction disassembly");
     }
     if(ud_obj.error) {
-        //fprintf(stderr, "Unable to disassemble %d bytes at address 0x%llx\n", sizeInBytes, baseAddr);
-        //fprintf(stderr, "0x%llx\n", *buff);
+        fprintf(stderr, "Unable to disassemble %d bytes at address 0x%llx\n", sizeInBytes, baseAddr);
+        fprintf(stderr, "0x%llx\n", *buff);
     }
 
     if(sz != sizeInBytes) {
@@ -2128,8 +2196,8 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
         PRINT_ERROR("Problem doing instruction disassembly");
     }
     if(ud_obj.error) {
-        //fprintf(stderr, "Unable to disassemble %d bytes at address 0x%llx\n", sizeInBytes, baseAddr);
-        //fprintf(stderr, "0x%llx\n", *buff);
+        fprintf(stderr, "Unable to disassemble %d bytes at address 0x%llx\n", sizeInBytes, baseAddr);
+        fprintf(stderr, "0x%llx\n", *buff);
     }
 
 
@@ -2371,12 +2439,16 @@ bool X86Instruction::verify(){
         if (op.base){
             if (!IS_REG(op.base)){
                 print();
-                PRINT_ERROR("Found operand %d with nonsensical base %d", i, op.base);
+                PRINT_ERROR("Found operand %d with nonsensical base %d for instruction at 0x%llx", i, op.base, getBaseAddress());
                 return false;
             }
         }
         if (op.index){
-            if (!IS_GPR(op.index) && !IS_ZMM_REG(op.index)){
+            //if (!IS_GPR(op.index) && !IS_ZMM_REG(op.index)){
+            // Some instructions can have XMM or YMM index:
+            // example: vgatherdpd
+            if (!IS_GPR(op.index) && !IS_ZMM_REG(op.index) && 
+                !IS_YMM_REG(op.index) && !(IS_XMM_REG(op.index))){
                 print();
                 PRINT_ERROR("Found operand with nonsensical index %d", op.index);
                 return false;
@@ -2622,13 +2694,13 @@ struct x86class {
 static struct x86class classifications[UD_Itotaltypes];
 
 bool X86InstructionClassifier::verify(){
-/*
+
     for(uint32_t i = 0; i < UD_Itotaltypes; ++i) {
         if(classifications[i].mnemonic == UD_Iinvalid) {
             PRINT_WARN(7, "No classification data for mnemonic %s\n", ud_mnemonics_str[i]);
         }
     }
-*/
+
     return true;
 }
 
@@ -2903,20 +2975,67 @@ void X86InstructionClassifier::generateTable(){
     mkclass(              jp,   condbr,    cond,   0,    0,    0,          0)
     mkclass(           jrcxz,   condbr,    cond,   0,    0,    0,          0)
     mkclass(              js,   condbr,    cond,   0,    0,    0,          0)
+    mkclass(           kaddb,      int,    intv,   0, VRSZ,    0,          8)
+    mkclass(           kaddd,      int,    intv,   0, VRSZ,    0,          32)
+    mkclass(           kaddq,      int,    intv,   0, VRSZ,    0,          64)
+    mkclass(           kaddw,      int,    intv,   0, VRSZ,    0,          16)
     mkclass(            kand,      int,     bin,   0,    0,    0,          0)
+    mkclass(           kandb,      int,     bin,   0, VRSZ,    0,          8)
+    mkclass(           kandd,      int,     bin,   0, VRSZ,    0,          32)
     mkclass(           kandn,      int,     bin,   0,    0,    0,          0)
+    mkclass(          kandnb,      int,     bin,   0, VRSZ,    0,          8)
+    mkclass(          kandnd,      int,     bin,   0, VRSZ,    0,          32)
+    mkclass(          kandnq,      int,     bin,   0, VRSZ,    0,          64)
+    mkclass(          kandnw,      int,     bin,   0, VRSZ,    0,          16)
     mkclass(          kandnr,      int,     bin,   0,    0,    0,          0)
+    mkclass(           kandq,      int,     bin,   0, VRSZ,    0,          64)
+    mkclass(           kandw,      int,     bin,   0, VRSZ,    0,          16)
     mkclass(        kconcath,     move,       0,   0,    0,    0,          0)
     mkclass(        kconcatl,     move,       0,   0,    0,    0,          0)
     mkclass(        kextract,     move,       0,   0,    0,    0,          0)
     mkclass(      kmerge2l1h,     move,       0,   0,    0,    0,          0)
     mkclass(      kmerge2l1l,     move,       0,   0,    0,    0,          0)
     mkclass(            kmov,     move,       0,   0,    0,    0,          0)
+    mkclass(           kmovb,     move,       0,   0, VRSZ,    0,          8)
+    mkclass(           kmovd,     move,       0,   0, VRSZ,    0,          32)
+    mkclass(           kmovq,     move,       0,   0, VRSZ,    0,          64)
+    mkclass(           kmovw,     move,       0,   0, VRSZ,    0,          16)
     mkclass(            knot,      int,     bin,   0,    0,    0,          0)
+    mkclass(           knotb,      int,     bin,   0, VRSZ,    0,          8)
+    mkclass(           knotd,      int,     bin,   0, VRSZ,    0,          32)
+    mkclass(           knotq,      int,     bin,   0, VRSZ,    0,          64)
+    mkclass(           knotw,      int,     bin,   0, VRSZ,    0,          16)
     mkclass(             kor,      int,     bin,   0,    0,    0,          0)
+    mkclass(            korb,      int,     bin,   0, VRSZ,    0,          8)
+    mkclass(            kord,      int,     bin,   0, VRSZ,    0,          32)
+    mkclass(            korq,      int,     bin,   0, VRSZ,    0,          64)
     mkclass(         kortest,      int,     bin,   0,    0,    0,          0)
+    mkclass(        kortestb,      int,     bin,   0, VRSZ,    0,          8)
+    mkclass(        kortestd,      int,     bin,   0, VRSZ,    0,          32)
+    mkclass(        kortestq,      int,     bin,   0, VRSZ,    0,          64)
+    mkclass(        kortestw,      int,     bin,   0, VRSZ,    0,          16)
+    mkclass(            korw,      int,     bin,   0, VRSZ,    0,          16)
+    mkclass(        kshiftlb,      int,    intv,   0, VRSZ,    0,          8)
+    mkclass(        kshiftld,      int,    intv,   0, VRSZ,    0,          32)
+    mkclass(        kshiftlq,      int,    intv,   0, VRSZ,    0,          64)
+    mkclass(        kshiftlw,      int,    intv,   0, VRSZ,    0,          16)
+    mkclass(        kshiftrb,      int,    intv,   0, VRSZ,    0,          8)
+    mkclass(        kshiftrd,      int,    intv,   0, VRSZ,    0,          32)
+    mkclass(        kshiftrq,      int,    intv,   0, VRSZ,    0,          64)
+    mkclass(        kshiftrw,      int,    intv,   0, VRSZ,    0,          16)
+    mkclass(        kunpckbw,      int,    intv,   0, VRSZ,    0,          8)
+    mkclass(        kunpckdq,      int,    intv,   0, VRSZ,    0,          32)
+    mkclass(        kunpckwd,      int,    intv,   0, VRSZ,    0,          16)
     mkclass(           kxnor,      int,     bin,   0,    0,    0,          0)
+    mkclass(          kxnorb,      int,     bin,   0, VRSZ,    0,          8)
+    mkclass(          kxnord,      int,     bin,   0, VRSZ,    0,          32)
+    mkclass(          kxnorq,      int,     bin,   0, VRSZ,    0,          64)
+    mkclass(          kxnorw,      int,     bin,   0, VRSZ,    0,          16)
     mkclass(            kxor,      int,     bin,   0,    0,    0,          0)
+    mkclass(           kxorb,      int,     bin,   0, VRSZ,    0,          8)
+    mkclass(           kxord,      int,     bin,   0, VRSZ,    0,          32)
+    mkclass(           kxorq,      int,     bin,   0, VRSZ,    0,          64)
+    mkclass(           kxorw,      int,     bin,   0, VRSZ,    0,          16)
     mkclass(            lahf,      int,   other,   0,    0,    0,          0)
     mkclass(             lar,  special,   other,   0,    0,    0,          0)
     mkclass(           lddqu,     move,    move,   0, VRSZ,    0,          0)
@@ -3293,6 +3412,9 @@ void X86InstructionClassifier::generateTable(){
     mkclass(         vaesimc,	aes,	0,	0,	0,	0,	0)
     mkclass(vaeskeygenassist,	aes,	0,	0,	0,	0,	0)
     mkclass(         valignd,   int,    0,      0,      0,      0,      0)
+    mkclass(         valignq,   int,    0,      0,      0,      0,      0)
+    mkclass(         vandn,     int, binv,      0,   VRSZ,      0,      0)
+ 
     mkclass(         vandnpd,      simdFloat, floatv, 0, VRSZ, 0,       64)
     mkclass(         vandnps,      simdFloat, floatv, 0, VRSZ, 0,       32)
     mkclass(          vandpd,      simdFloat, floatv, 0, VRSZ, 0,       64)
@@ -3305,10 +3427,17 @@ void X86InstructionClassifier::generateTable(){
     mkclass(       vblendvpd,    simdFloat,    floatv,    0,    VRSZ,    0,    64)
     mkclass(       vblendvps,    simdFloat,    floatv,    0,    VRSZ,    0,    32)
     mkclass(      vbroadcast,    move,         0,   0,    0,    0,          0)
+    mkclass( vbroadcastf32x2,    simdMove,         0,    0,    0,    0,    32)
     mkclass( vbroadcastf32x4,    simdMove,         0,    0,    0,    0,    32)
+    mkclass( vbroadcastf32x8,    simdMove,         0,    0,    0,    0,    32)
+    mkclass( vbroadcastf64x2,    simdMove,         0,    0,    0,    0,    64)
     mkclass( vbroadcastf64x4,    simdMove,         0,    0,    0,    0,    64)
     mkclass(  vbroadcasti128,    move,         0,    0,    0,    0,    0)
+    mkclass(  vbroadcastf128,    move,         0,    0,    0,    0,    0)
+    mkclass( vbroadcasti32x2,    simdMove,         0,    0,    0,    0,    32)
     mkclass( vbroadcasti32x4,    simdMove,         0,    0,    0,    0,    32)
+    mkclass( vbroadcasti32x8,    simdMove,         0,    0,    0,    0,    32)
+    mkclass( vbroadcasti64x2,    simdMove,         0,    0,    0,    0,    64)
     mkclass( vbroadcasti64x4,    simdMove,         0,    0,    0,    0,    64)
     mkclass(    vbroadcastsd,    simdMove,     floats,    0,      64,    0,    64)
     mkclass(    vbroadcastss,    simdMove,     floats,    0,      32,    0,    32)
@@ -3318,6 +3447,8 @@ void X86InstructionClassifier::generateTable(){
     mkclass(          vcmpss,    float,    floats,    0,    32,      0,    32)
     mkclass(         vcomisd,    float,    floats,    0,    64,      0,    64)
     mkclass(         vcomiss,    float,    floats,    0,    32,      0,    32)
+    mkclass(     vcompresspd,    float,    floatv,    0,    VRSZ,    0,    64)
+    mkclass(     vcompressps,    float,    floatv,    0,    VRSZ,    0,    32)
     mkclass(       vcvtdq2pd,    simdInt,    intv,    0,    VRSZ,    0,    32)
     mkclass(       vcvtdq2ps,    simdInt,    intv,    0,    VRSZ,    0,    32)
     mkclass(  vcvtfxpntdq2ps,    simdInt,    intv,    0,    VRSZ,    0,    32)
@@ -3328,21 +3459,45 @@ void X86InstructionClassifier::generateTable(){
     mkclass( vcvtfxpntudq2ps,    simdInt,    intv,    0,    VRSZ,    0,    32)
     mkclass(       vcvtpd2dq,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
     mkclass(       vcvtpd2ps,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(       vcvtpd2qq,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(       vcvtpd2udq,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(       vcvtpd2uqq,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
     mkclass(       vcvtph2ps,  simdFloat,  floatv,    0,    VRSZ,    0,    16)
     mkclass(       vcvtps2dq,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
     mkclass(       vcvtps2pd,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
     mkclass(       vcvtps2ph,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(       vcvtps2qq,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(       vcvtps2udq,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(       vcvtps2uqq,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(       vcvtqq2pd,     simdInt,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(       vcvtqq2ps,     simdInt,  floatv,    0,    VRSZ,    0,    64)
     mkclass(       vcvtsd2si,      float,  floats,    0,      64,    0,    64)
+    mkclass(       vcvtsd2usi,     float,  floats,    0,      64,    0,    64)
     mkclass(       vcvtsd2ss,      float,  floats,    0,      64,    0,    64)
     mkclass(       vcvtsi2sd,        int,    ints,    0,    VRSZ,    0,     0)
     mkclass(       vcvtsi2ss,        int,    ints,    0,    VRSZ,    0,     0)
     mkclass(       vcvtss2sd,      float,  floats,    0,      32,    0,    32)
     mkclass(       vcvtss2si,      float,  floats,    0,      32,    0,    32)
+    mkclass(       vcvtss2usi,      float,  floats,    0,      32,    0,    32)
     mkclass(      vcvttpd2dq,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(      vcvttpd2qq,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(      vcvttpd2udq, simdFloat,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(      vcvttpd2uqq, simdFloat,  floatv,    0,    VRSZ,    0,    64)
     mkclass(      vcvttps2dq,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(      vcvttps2qq,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(      vcvttps2udq, simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(      vcvttps2uqq, simdFloat,  floatv,    0,    VRSZ,    0,    32)
     mkclass(      vcvttsd2si,      float,  floats,    0,      64,    0,    64)
+    mkclass(      vcvttsd2usi,     float,  floats,    0,      64,    0,    64)
     mkclass(      vcvttss2si,      float,  floats,    0,      32,    0,    32)
+    mkclass(      vcvttss2usi,     float,  floats,    0,      32,    0,    32)
     mkclass(      vcvtudq2pd,    simdInt,    intv,    0,    VRSZ,    0,    32)
+    mkclass(      vcvtudq2ps,    simdInt,    intv,    0,    VRSZ,    0,    32)
+    mkclass(      vcvtuqq2pd,    simdInt,    intv,    0,    VRSZ,    0,    64)
+    mkclass(      vcvtuqq2ps,    simdInt,    intv,    0,    VRSZ,    0,    64)
+    mkclass(      vcvtusi2sd,        int,     int,    0,    VRSZ,    0,    32)
+    mkclass(      vcvtusi2ss,        int,     int,    0,    VRSZ,    0,    32)
+    mkclass(       vdbpsadbw,        int,     int,    0,    VRSZ,    0,    32)
     mkclass(          vdivpd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
     mkclass(          vdivps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
     mkclass(          vdivsd,      float,  floats,    0,      64,    0,    64)
@@ -3351,18 +3506,40 @@ void X86InstructionClassifier::generateTable(){
     mkclass(           vdpps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
     mkclass(            verr,    special,   other,    0,       0,    0,     0)
     mkclass(            verw,    special,   other,    0,       0,    0,     0)
+    mkclass(         vexp2pd,   simdMove,  floatv,    0,    VRSZ,    0,    512)
+    mkclass(         vexp2ps,   simdMove,  floatv,    0,    VRSZ,    0,    512)
+    mkclass(       vexpandpd,   simdMove,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(       vexpandps,   simdMove,  floatv,    0,    VRSZ,    0,    32)
     mkclass(       vexp223ps,    simdInt,    intv,    0,    VRSZ,    0,    32)
     mkclass(    vextractf128,       move,       0,    0,       0,    0,     0)
+    mkclass(    vextractf32x4,  simdMove,       0,    0,    VRSZ,    0,    32)
+    mkclass(    vextractf32x8,  simdMove,       0,    0,    VRSZ,    0,    32)
+    mkclass(    vextractf64x2,  simdMove,       0,    0,    VRSZ,    0,    64)
+    mkclass(    vextractf64x4,  simdMove,       0,    0,    VRSZ,    0,    64)
     mkclass(    vextracti128,       move,       0,    0,       0,    0,     0)
+    mkclass(    vextracti32x4,  simdMove,       0,    0,    VRSZ,    0,    32)
+    mkclass(    vextracti32x8,  simdMove,       0,    0,    VRSZ,    0,    32)
+    mkclass(    vextracti64x2,  simdMove,       0,    0,    VRSZ,    0,    64)
+    mkclass(    vextracti64x4,  simdMove,       0,    0,    VRSZ,    0,    64)
     mkclass(      vextractps,       move,       0,    0,       0,    0,    32)
+    mkclass(     vfixupimmpd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(     vfixupimmps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(     vfixupimmsd,      float,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(     vfixupimmss,      float,  floatv,    0,    VRSZ,    0,    32)
     mkclass(     vfixupnanpd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
     mkclass(     vfixupnanps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
     mkclass(     vfmadd132pd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
     mkclass(     vfmadd132ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(     vfmadd132sd,      float,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(     vfmadd132ss,      float,  floatv,    0,    VRSZ,    0,    32)
     mkclass(     vfmadd213pd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
     mkclass(     vfmadd213ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(     vfmadd213sd,      float,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(     vfmadd213ss,      float,  floatv,    0,    VRSZ,    0,    32)
     mkclass(     vfmadd231pd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
     mkclass(     vfmadd231ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(     vfmadd231sd,      float,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(     vfmadd231ss,      float,  floatv,    0,    VRSZ,    0,    32)
     mkclass(     vfmadd233ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
     mkclass(     vfmsub132pd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
     mkclass(     vfmsub132ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
@@ -3370,18 +3547,57 @@ void X86InstructionClassifier::generateTable(){
     mkclass(     vfmsub213ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
     mkclass(     vfmsub231pd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
     mkclass(     vfmsub231ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(     vfmsub132sd,      float,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(     vfmsub132ss,      float,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(     vfmsub213sd,      float,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(     vfmsub213ss,      float,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(     vfmsub231sd,      float,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(     vfmsub231ss,      float,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(     vfmaddsub132pd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(     vfmaddsub132ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(     vfmaddsub213pd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(     vfmaddsub213ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(     vfmaddsub231pd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(     vfmaddsub231ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(     vfmsubadd132pd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(     vfmsubadd132ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(     vfmsubadd213pd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(     vfmsubadd213ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(     vfmsubadd231pd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(     vfmsubadd231ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+
     mkclass(    vfnmadd132pd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
     mkclass(    vfnmadd132ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
     mkclass(    vfnmadd213pd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
     mkclass(    vfnmadd213ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
     mkclass(    vfnmadd231pd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
     mkclass(    vfnmadd231ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+
+    mkclass(    vfnmadd132sd,      float,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(    vfnmadd132ss,      float,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(    vfnmadd213sd,      float,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(    vfnmadd213ss,      float,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(    vfnmadd231sd,      float,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(    vfnmadd231ss,      float,  floatv,    0,    VRSZ,    0,    32)
+
     mkclass(    vfnmsub132pd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
     mkclass(    vfnmsub132ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
     mkclass(    vfnmsub213pd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
     mkclass(    vfnmsub213ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
     mkclass(    vfnmsub231pd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
     mkclass(    vfnmsub231ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+
+    mkclass(    vfnmsub132sd,      float,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(    vfnmsub132ss,      float,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(    vfnmsub213sd,      float,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(    vfnmsub213ss,      float,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(    vfnmsub231sd,      float,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(    vfnmsub231ss,      float,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(    vfpclasspd,    simdFloat,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(    vfpclassps,    simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(    vfpclasssd,        float,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(    vfpclassss,        float,  floatv,    0,    VRSZ,    0,    32)
+ 
 
     // FIXME no docs for these??
     //mkclass(         vfmaddp,    unknown,       0,    0,       0,    0,     0)
@@ -3397,14 +3613,28 @@ void X86InstructionClassifier::generateTable(){
 
     mkclass(      vgatherdpd,  simdMove,    floatv,    0,    VRSZ,    0,    64)
     mkclass(      vgatherdps,  simdMove,    floatv,    0,    VRSZ,    0,    32)
+    mkclass(      vgatherdpd, simdMove,    floatv,    0,    VRSZ,    0,    64)
+    mkclass(      vgatherdps, simdMove,    floatv,    0,    VRSZ,    0,    32)
+    mkclass(      vgatherqpd, simdMove,    floatv,    0,    VRSZ,    0,    64)
+    mkclass(      vgatherqps, simdMove,    floatv,    0,    VRSZ,    0,    32)
+    mkclass(   vgatherpf0dpd,  simdMove,    floatv,    0,    VRSZ,    0,    64)
     mkclass(   vgatherpf0dps,  simdMove,    floatv,    0,    VRSZ,    0,    32)
+    mkclass(   vgatherpf0qpd,  simdMove,    floatv,    0,    VRSZ,    0,    64)
+    mkclass(   vgatherpf0qps,  simdMove,    floatv,    0,    VRSZ,    0,    32)
     mkclass(vgatherpf0hintdpd, simdMove,    floatv,    0,    VRSZ,    0,    64)
     mkclass(vgatherpf0hintdps, simdMove,    floatv,    0,    VRSZ,    0,    32)
+    mkclass(   vgatherpf1dpd,  simdMove,    floatv,    0,    VRSZ,    0,    64)
     mkclass(   vgatherpf1dps,  simdMove,    floatv,    0,    VRSZ,    0,    32)
+    mkclass(   vgatherpf1qpd,  simdMove,    floatv,    0,    VRSZ,    0,    64)
+    mkclass(   vgatherpf1qps,  simdMove,    floatv,    0,    VRSZ,    0,    32)
     mkclass(       vgetexppd,  simdFloat,    floatv,    0,    VRSZ,    0,    64)
     mkclass(       vgetexpps,  simdFloat,    floatv,    0,    VRSZ,    0,    32)
+    mkclass(       vgetexpsd,      float,    floatv,    0,    VRSZ,    0,    64)
+    mkclass(       vgetexpss,      float,    floatv,    0,    VRSZ,    0,    32)
     mkclass(      vgetmantpd,  simdFloat,    floatv,    0,    VRSZ,    0,    64)
     mkclass(      vgetmantps,  simdFloat,    floatv,    0,    VRSZ,    0,    32)
+    mkclass(      vgetmantsd,      float,    floatv,    0,    VRSZ,    0,    64)
+    mkclass(      vgetmantss,      float,    floatv,    0,    VRSZ,    0,    32)
     mkclass(      vgmaxabsps,  simdFloat,    floatv,    0,    VRSZ,    0,    32)
     mkclass(         vgmaxpd,  simdFloat,    floatv,    0,    VRSZ,    0,    64)
     mkclass(         vgmaxps,  simdFloat,    floatv,    0,    VRSZ,    0,    32)
@@ -3415,7 +3645,15 @@ void X86InstructionClassifier::generateTable(){
     mkclass(         vhsubpd,  simdFloat,    floatv,    0,    VRSZ,    0,    64)
     mkclass(         vhsubps,  simdFloat,    floatv,    0,    VRSZ,    0,    32)
     mkclass(     vinsertf128,       move,         0,    0,       0,    0,    0)
+    mkclass(     vinsertf32x4,      move,         0,    0,       0,    0,    0)
+    mkclass(     vinsertf32x8,      move,         0,    0,       0,    0,    0)
+    mkclass(     vinsertf64x2,      move,         0,    0,       0,    0,    0)
+    mkclass(     vinsertf64x4,      move,         0,    0,       0,    0,    0)
     mkclass(     vinserti128,       move,         0,    0,       0,    0,    0)
+    mkclass(     vinserti32x4,      move,         0,    0,       0,    0,    0)
+    mkclass(     vinserti32x8,      move,         0,    0,       0,    0,    0)
+    mkclass(     vinserti64x2,      move,         0,    0,       0,    0,    0)
+    mkclass(     vinserti64x4,      move,         0,    0,       0,    0,    0)
     mkclass(       vinsertps,       move,         0,    0,       0,    0,    0)
     mkclass(          vlddqu,       move,         0,    0,    VRSZ,    0,    0)
     mkclass(        vldmxcsr,       move,         0,    0,       0,    0,    0)
@@ -3450,6 +3688,12 @@ void X86InstructionClassifier::generateTable(){
     mkclass(       vmovdqa32,   simdMove,         0,    0,    VRSZ,    0,    32)
     mkclass(       vmovdqa64,   simdMove,         0,    0,    VRSZ,    0,    64)
     mkclass(         vmovdqu,       move,         0,    0,       0,    0,    0)
+    mkclass(       vmovdqu8,    simdMove,         0,    0,    VRSZ,    0,    8)
+    mkclass(       vmovdqu16,   simdMove,         0,    0,    VRSZ,    0,    16)
+    mkclass(       vmovdqu32,   simdMove,         0,    0,    VRSZ,    0,    32)
+    mkclass(       vmovdqu64,   simdMove,         0,    0,    VRSZ,    0,    64)
+    mkclass(         vmovhlps,   simdMove,    floatv,    0,    VRSZ,    0,   32)
+    mkclass(         vmovlhps,   simdMove,    floatv,    0,    VRSZ,    0,   32)
     mkclass(         vmovhpd,   simdMove,    floatv,    0,    VRSZ,    0,    64)
     mkclass(         vmovhps,   simdMove,    floatv,    0,    VRSZ,    0,    32)
     mkclass(         vmovlpd,   simdMove,    floatv,    0,    VRSZ,    0,    64)
@@ -3489,6 +3733,7 @@ void X86InstructionClassifier::generateTable(){
     mkclass(          vpabsb,    simdInt,      intv,    0,    VRSZ,    0,    8)
     mkclass(          vpabsd,    simdInt,      intv,    0,    VRSZ,    0,    32)
     mkclass(          vpabsw,    simdInt,      intv,    0,    VRSZ,    0,    16)
+    mkclass(          vpabsq,    simdInt,      intv,    0,    VRSZ,    0,    64)
     mkclass(       vpackssdw,    simdInt,      intv,    0,    VRSZ,    0,    32)
     mkclass(       vpacksswb,    simdInt,      intv,    0,    VRSZ,    0,    16)
     mkclass(    vpackstorehd,   simdMove,      intv,    0,    VRSZ,    0,    32)
@@ -3521,16 +3766,26 @@ void X86InstructionClassifier::generateTable(){
     mkclass(          vpandq,    simdInt,    binv,    0,    VRSZ,    0,    64)
     mkclass(          vpavgb,    simdInt,    intv,    0,    VRSZ,    0,    8)
     mkclass(          vpavgw,    simdInt,    intv,    0,    VRSZ,    0,    16)
+    mkclass(       vpblendmb,    simdInt,    intv,    0,    VRSZ,    0,    8)
+    mkclass(       vpblendmw,    simdInt,    intv,    0,    VRSZ,    0,    16)
     mkclass(       vpblendmd,    simdInt,    intv,    0,    VRSZ,    0,    32)
     mkclass(       vpblendmq,    simdInt,    intv,    0,    VRSZ,    0,    64)
     mkclass(       vpblendvb,    simdInt,    intv,    0,    VRSZ,    0,    8)
     mkclass(        vpblendw,    simdInt,    intv,    0,    VRSZ,    0,    16)
+    mkclass(    vpbroadcastmb2q, simdMove,   intv,    0,    VRSZ,    0,    8)
+    mkclass(    vpbroadcastmw2d, simdMove,   intv,    0,    VRSZ,    0,    16)
     mkclass(    vpbroadcastb,    simdMove,    intv,    0,    VRSZ,    0,    8)
     mkclass(    vpbroadcastw,    simdMove,    intv,    0,    VRSZ,    0,    16)
     mkclass(    vpbroadcastd,    simdMove,    intv,    0,    VRSZ,    0,    32)
     mkclass(    vpbroadcastq,    simdMove,    intv,    0,    VRSZ,    0,    64)
     mkclass(      vpclmulqdq,        int,    ints,    0,     128,    0,    64)
+    mkclass(          vpcmpb,    simdInt,    intv,    0,    VRSZ,    0,    8)
+    mkclass(          vpcmpub,   simdInt,    intv,    0,    VRSZ,    0,    8)
+    mkclass(          vpcmpw,    simdInt,    intv,    0,    VRSZ,    0,    16)
+    mkclass(          vpcmpuw,   simdInt,    intv,    0,    VRSZ,    0,    16)
     mkclass(          vpcmpd,    simdInt,    intv,    0,    VRSZ,    0,    32)
+    mkclass(          vpcmpq,    simdInt,    intv,    0,    VRSZ,    0,    64)
+    mkclass(          vpcmpuq,    simdInt,    intv,    0,    VRSZ,    0,    64)
     mkclass(        vpcmpeqb,    simdInt,    intv,    0,    VRSZ,    0,    8)
     mkclass(        vpcmpeqd,    simdInt,    intv,    0,    VRSZ,    0,    32)
     mkclass(        vpcmpeqq,    simdInt,    intv,    0,    VRSZ,    0,    64)
@@ -3545,19 +3800,44 @@ void X86InstructionClassifier::generateTable(){
     mkclass(      vpcmpistrm,    simdInt,       0,    0,       0,    0,    0)
     mkclass(        vpcmpltd,    simdInt,    intv,    0,    VRSZ,    0,    32)
     mkclass(         vpcmpud,    simdInt,    intv,    0,    VRSZ,    0,    32)
+    mkclass(     vpcompressd,    simdMove,   intv,    0,    VRSZ,    0,    32)
+    mkclass(     vpcompressq,    simdMove,   intv,    0,    VRSZ,    0,    64)
+    mkclass(     vpconflictd,    simdInt,   intv,    0,    VRSZ,    0,    32)
+    mkclass(     vpconflictq,    simdInt,   intv,    0,    VRSZ,    0,    64)
     mkclass(           vpdep,        int,     bin,    0,    VRSZ,    0,    0)
+    mkclass(      vperm2i128,    simdInt,    intv,    0,    VRSZ,    0,    8)
+    mkclass(          vpermb,    simdInt,    intv,    0,    VRSZ,    0,    8)
     mkclass(          vpermd,    simdInt,    intv,    0,    VRSZ,    0,    32)
-    mkclass(         vpermpd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
     mkclass(       vpermf128,  simdFloat,  floatv,    0,    VRSZ,    0,    128)
     mkclass(      vpermf32x4,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
     mkclass(       vpermilpd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
     mkclass(       vpermilps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(        vpermi2b,    simdInt,    intv,    0,    VRSZ,    0,    8)
+    mkclass(        vpermi2d,    simdInt,    intv,    0,    VRSZ,    0,    32)
+    mkclass(       vpermi2pd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(       vpermi2ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(        vpermi2q,    simdInt,    intv,    0,    VRSZ,    0,    64)
+    mkclass(        vpermi2w,    simdInt,    intv,    0,    VRSZ,    0,    16)
+    mkclass(         vpermpd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(         vpermps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(          vpermq,    simdInt,    intv,    0,    VRSZ,    0,    64)
+    mkclass(        vpermt2b,    simdInt,    intv,    0,    VRSZ,    0,    8)
+    mkclass(        vpermt2d,    simdInt,    intv,    0,    VRSZ,    0,    8)
+    mkclass(       vpermt2pd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(       vpermt2ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(        vpermt2q,    simdInt,    intv,    0,    VRSZ,    0,    64)
+    mkclass(        vpermt2w,    simdInt,    intv,    0,    VRSZ,    0,    16)
+    mkclass(          vpermw,    simdInt,    intv,    0,    VRSZ,    0,    16)
+    mkclass(       vpexpandd,    simdInt,    intv,    0,    VRSZ,    0,    32)
+    mkclass(       vpexpandq,    simdInt,    intv,    0,    VRSZ,    0,    64)
     mkclass(         vpextrb,       int,        0,    0,    VRSZ,    0,    8)
     mkclass(         vpextrd,       int,        0,    0,    VRSZ,    0,    32)
     mkclass(         vpextrq,       int,        0,    0,    VRSZ,    0,    64)
     mkclass(         vpextrw,       int,        0,    0,    VRSZ,    0,    16)
     mkclass(      vpgatherdd,   simdMove,    intv,    0,    VRSZ,    0,    32)
     mkclass(      vpgatherdq,   simdMove,    intv,    0,    VRSZ,    0,    64)
+    mkclass(      vpgatherqd,   simdMove,    intv,    0,    VRSZ,    0,    32)
+    mkclass(      vpgatherqq,   simdMove,    intv,    0,    VRSZ,    0,    64)
     mkclass(         vphaddd,    simdInt,    intv,    0,    VRSZ,    0,    32)
     mkclass(        vphaddsw,    simdInt,    intv,    0,    VRSZ,    0,    16)
     mkclass(         vphaddw,    simdInt,    intv,    0,    VRSZ,    0,    16)
@@ -3569,29 +3849,65 @@ void X86InstructionClassifier::generateTable(){
     mkclass(         vpinsrd,        int,       0,    0,    VRSZ,    0,    32)
     mkclass(         vpinsrq,        int,       0,    0,    VRSZ,    0,    64)
     mkclass(         vpinsrw,        int,       0,    0,    VRSZ,    0,    16)
+    mkclass(        vplzcntd,    simdInt,    intv,    0,    VRSZ,    0,    32)
+    mkclass(        vplzcntq,    simdInt,    intv,    0,    VRSZ,    0,    64)
     mkclass(      vpmadd231d,    simdInt,    intv,    0,    VRSZ,    0,    32)
     mkclass(      vpmadd233d,    simdInt,    intv,    0,    VRSZ,    0,    32)
+    mkclass(     vpmadd52huq,    simdInt,    intv,    0,    VRSZ,    0,    64)
+    mkclass(     vpmadd52luq,    simdInt,    intv,    0,    VRSZ,    0,    64)
+    mkclass(      vpmaddubsw,    simdInt,    intv,    0,    VRSZ,    0,    8)
     mkclass(      vpmaddusbw,    simdInt,    intv,    0,    VRSZ,    0,    8)
     mkclass(        vpmaddwd,    simdInt,    intv,    0,    VRSZ,    0,    16)
+    mkclass(      vpmaskmovd,    simdInt,    intv,    0,    VRSZ,    0,    16)
     mkclass(         vpmaxsb,    simdInt,    intv,    0,    VRSZ,    0,    8)
     mkclass(         vpmaxsd,    simdInt,    intv,    0,    VRSZ,    0,    32)
+    mkclass(         vpmaxsq,    simdInt,    intv,    0,    VRSZ,    0,    64)
     mkclass(         vpmaxsw,    simdInt,    intv,    0,    VRSZ,    0,    16)
     mkclass(         vpmaxub,    simdInt,    intv,    0,    VRSZ,    0,    8)
     mkclass(         vpmaxud,    simdInt,    intv,    0,    VRSZ,    0,    32)
+    mkclass(         vpmaxuq,    simdInt,    intv,    0,    VRSZ,    0,    64)
     mkclass(         vpmaxuw,    simdInt,    intv,    0,    VRSZ,    0,    16)
     mkclass(         vpminsb,    simdInt,    intv,    0,    VRSZ,    0,    8)
     mkclass(         vpminsd,    simdInt,    intv,    0,    VRSZ,    0,    32)
+    mkclass(         vpminsq,    simdInt,    intv,    0,    VRSZ,    0,    64)
     mkclass(         vpminsw,    simdInt,    intv,    0,    VRSZ,    0,    16)
     mkclass(         vpminub,    simdInt,    intv,    0,    VRSZ,    0,    8)
     mkclass(         vpminud,    simdInt,    intv,    0,    VRSZ,    0,    32)
+    mkclass(         vpminuq,    simdInt,    intv,    0,    VRSZ,    0,    64)
     mkclass(         vpminuw,    simdInt,    intv,    0,    VRSZ,    0,    16)
     mkclass(       vpmovmskb,       move,       0,    0,       0,    0,    0)
+    mkclass(        vpmovb2m,       move,    intv,    0,    VRSZ,    0,    8)
+    mkclass(        vpmovd2m,       move,    intv,    0,    VRSZ,    0,    32)
+    mkclass(         vpmovdb,   simdMove,    intv,    0,    VRSZ,    0,    32)
+    mkclass(         vpmovdw,   simdMove,    intv,    0,    VRSZ,    0,    32)
+    mkclass(        vpmovm2b,       move,    intv,    0,    VRSZ,    0,    8)
+    mkclass(        vpmovm2d,       move,    intv,    0,    VRSZ,    0,    32)
+    mkclass(        vpmovm2q,       move,    intv,    0,    VRSZ,    0,    64)
+    mkclass(        vpmovm2w,       move,    intv,    0,    VRSZ,    0,    16)
+    mkclass(        vpmovq2m,       move,    intv,    0,    VRSZ,    0,    64)
+    mkclass(         vpmovqb,       move,    intv,    0,    VRSZ,    0,    64)
+    mkclass(         vpmovqd,       move,    intv,    0,    VRSZ,    0,    64)
+    mkclass(         vpmovqw,       move,    intv,    0,    VRSZ,    0,    64)
+    mkclass(        vpmovsdb,       move,    intv,    0,    VRSZ,    0,    32)
+    mkclass(        vpmovsdw,       move,    intv,    0,    VRSZ,    0,    32)
+    mkclass(        vpmovsqb,       move,    intv,    0,    VRSZ,    0,    64)
+    mkclass(        vpmovsqd,       move,    intv,    0,    VRSZ,    0,    64)
+    mkclass(        vpmovsqw,       move,    intv,    0,    VRSZ,    0,    64)
+    mkclass(        vpmovswb,       move,    intv,    0,    VRSZ,    0,    16)
     mkclass(       vpmovsxbd,       move,    intv,    0,    VRSZ,    0,    8)
     mkclass(       vpmovsxbq,       move,    intv,    0,    VRSZ,    0,    8)
     mkclass(       vpmovsxbw,       move,    intv,    0,    VRSZ,    0,    8)
     mkclass(       vpmovsxdq,       move,    intv,    0,    VRSZ,    0,    32)
     mkclass(       vpmovsxwd,       move,    intv,    0,    VRSZ,    0,    16)
     mkclass(       vpmovsxwq,       move,    intv,    0,    VRSZ,    0,    16)
+    mkclass(       vpmovusdb,       move,    intv,    0,    VRSZ,    0,    32)
+    mkclass(       vpmovusdw,       move,    intv,    0,    VRSZ,    0,    32)
+    mkclass(       vpmovusqb,       move,    intv,    0,    VRSZ,    0,    64)
+    mkclass(       vpmovusqd,       move,    intv,    0,    VRSZ,    0,    64)
+    mkclass(       vpmovusqw,       move,    intv,    0,    VRSZ,    0,    64)
+    mkclass(       vpmovuswb,       move,    intv,    0,    VRSZ,    0,    16)
+    mkclass(        vpmovw2m,       move,    intv,    0,    VRSZ,    0,    16)
+    mkclass(         vpmovwb,       move,    intv,    0,    VRSZ,    0,    16)
     mkclass(       vpmovzxbd,       move,    intv,    0,    VRSZ,    0,    8)
     mkclass(       vpmovzxbq,       move,    intv,    0,    VRSZ,    0,    8)
     mkclass(       vpmovzxbw,       move,    intv,    0,    VRSZ,    0,    8)
@@ -3605,7 +3921,9 @@ void X86InstructionClassifier::generateTable(){
     mkclass(        vpmulhuw,    simdInt,    intv,    0,    VRSZ,    0,    16)
     mkclass(         vpmulhw,    simdInt,    intv,    0,    VRSZ,    0,    16)
     mkclass(         vpmulld,    simdInt,    intv,    0,    VRSZ,    0,    32)
+    mkclass(         vpmullq,    simdInt,    intv,    0,    VRSZ,    0,    64)
     mkclass(         vpmullw,    simdInt,    intv,    0,    VRSZ,    0,    16)
+    mkclass(  vpmultishiftqb,    simdInt,    intv,    0,    VRSZ,    0,    64)
     mkclass(        vpmuludq,    simdInt,    intv,    0,    VRSZ,    0,    32)
     mkclass(            vpor,    simdInt,    binv,    0,    VRSZ,    0,    32) // FIXME
     mkclass(           vpord,    simdInt,    binv,    0,    VRSZ,    0,    32)
@@ -3618,11 +3936,21 @@ void X86InstructionClassifier::generateTable(){
     mkclass(     vprefetche2,   prefetch,    0,       0,       0,    0,    0)
     mkclass(   vprefetchenta,   prefetch,    0,       0,       0,    0,    0)
     mkclass(    vprefetchnta,   prefetch,    0,       0,       0,    0,    0)
+    mkclass(          vprold,    simdInt,    intv,    0,    VRSZ,    0,    32)
+    mkclass(          vprolq,    simdInt,    intv,    0,    VRSZ,    0,    64)
+    mkclass(         vprolvd,    simdInt,    intv,    0,    VRSZ,    0,    32)
+    mkclass(         vprolvq,    simdInt,    intv,    0,    VRSZ,    0,    64)
+    mkclass(          vprord,    simdInt,    intv,    0,    VRSZ,    0,    32)
+    mkclass(          vprorq,    simdInt,    intv,    0,    VRSZ,    0,    64)
+    mkclass(         vprorvd,    simdInt,    intv,    0,    VRSZ,    0,    32)
+    mkclass(         vprorvq,    simdInt,    intv,    0,    VRSZ,    0,    64)
     mkclass(         vpsadbw,    simdInt,    intv,    0,    VRSZ,    0,    0)
     mkclass(          vpsbbd,    simdInt,    intv,    0,    VRSZ,    0,    32)
     mkclass(         vpsbbrd,    simdInt,    intv,    0,    VRSZ,    0,    32)
     mkclass(     vpscatterdd,   simdMove,    intv,    0,    VRSZ,    0,    32)
     mkclass(     vpscatterdq,   simdMove,    intv,    0,    VRSZ,    0,    64)
+    mkclass(     vpscatterqd,   simdMove,    intv,    0,    VRSZ,    0,    32)
+    mkclass(     vpscatterqq,   simdMove,    intv,    0,    VRSZ,    0,    64)
     mkclass(         vpshufb,    simdInt,    intv,    0,    VRSZ,    0,    8)
     mkclass(         vpshufd,    simdInt,    intv,    0,    VRSZ,    0,    32)
     mkclass(        vpshufhw,    simdInt,    intv,    0,    VRSZ,    0,    16)
@@ -3634,14 +3962,21 @@ void X86InstructionClassifier::generateTable(){
     mkclass(         vpslldq,    simdInt,    intv,    0,    VRSZ,    0,    128)
     mkclass(          vpsllq,    simdInt,    intv,    0,    VRSZ,    0,    64)
     mkclass(         vpsllvd,    simdInt,    intv,    0,    VRSZ,    0,    32)
+    mkclass(         vpsllvq,    simdInt,    intv,    0,    VRSZ,    0,    64)
+    mkclass(         vpsllvw,    simdInt,    intv,    0,    VRSZ,    0,    16)
     mkclass(          vpsllw,    simdInt,    intv,    0,    VRSZ,    0,    16)
     mkclass(          vpsrad,    simdInt,    intv,    0,    VRSZ,    0,    32)
+    mkclass(          vpsraq,    simdInt,    intv,    0,    VRSZ,    0,    64)
     mkclass(         vpsravd,    simdInt,    intv,    0,    VRSZ,    0,    32)
+    mkclass(         vpsravq,    simdInt,    intv,    0,    VRSZ,    0,    64)
+    mkclass(         vpsravw,    simdInt,    intv,    0,    VRSZ,    0,    16)
     mkclass(          vpsraw,    simdInt,    intv,    0,    VRSZ,    0,    16)
     mkclass(          vpsrld,    simdInt,    intv,    0,    VRSZ,    0,    32)
     mkclass(         vpsrldq,    simdInt,    intv,    0,    VRSZ,    0,    128)
     mkclass(          vpsrlq,    simdInt,    intv,    0,    VRSZ,    0,    64)
     mkclass(         vpsrlvd,    simdInt,    intv,    0,    VRSZ,    0,    32)
+    mkclass(         vpsrlvq,    simdInt,    intv,    0,    VRSZ,    0,    64)
+    mkclass(         vpsrlvw,    simdInt,    intv,    0,    VRSZ,    0,    16)
     mkclass(          vpsrlw,    simdInt,    intv,    0,    VRSZ,    0,    16)
     mkclass(          vpsubb,    simdInt,    intv,    0,    VRSZ,    0,    8)
     mkclass(          vpsubd,    simdInt,    intv,    0,    VRSZ,    0,    32)
@@ -3654,8 +3989,17 @@ void X86InstructionClassifier::generateTable(){
     mkclass(        vpsubusb,    simdInt,    intv,    0,    VRSZ,    0,    8)
     mkclass(        vpsubusw,    simdInt,    intv,    0,    VRSZ,    0,    16)
     mkclass(          vpsubw,    simdInt,    intv,    0,    VRSZ,    0,    16)
+    mkclass(      vpternlogd,    simdInt,    binv,    0,    VRSZ,    0,    32)
+    mkclass(      vpternlogq,    simdInt,    binv,    0,    VRSZ,    0,    64)
     mkclass(          vptest,        int,    binv,    0,    VRSZ,    0,    0)
+    mkclass(        vptestmb,    simdInt,    binv,    0,    VRSZ,    0,    8)
     mkclass(        vptestmd,    simdInt,    binv,    0,    VRSZ,    0,    32)
+    mkclass(        vptestmq,    simdInt,    binv,    0,    VRSZ,    0,    64)
+    mkclass(        vptestmw,    simdInt,    binv,    0,    VRSZ,    0,    16)
+    mkclass(       vptestnmb,    simdInt,    binv,    0,    VRSZ,    0,    8)
+    mkclass(       vptestnmd,    simdInt,    binv,    0,    VRSZ,    0,    32)
+    mkclass(       vptestnmq,    simdInt,    binv,    0,    VRSZ,    0,    64)
+    mkclass(       vptestnmw,    simdInt,    binv,    0,    VRSZ,    0,    16)
     mkclass(      vpunpckhbw,    simdInt,    intv,    0,    VRSZ,    0,    8)
     mkclass(      vpunpckhdq,    simdInt,    intv,    0,    VRSZ,    0,    32)
     mkclass(     vpunpckhqdq,    simdInt,    intv,    0,    VRSZ,    0,    64)
@@ -3667,27 +4011,73 @@ void X86InstructionClassifier::generateTable(){
     mkclass(           vpxor,    simdInt,    binv,    0,    VRSZ,    0,    32) // FIXME element size isn't actually known
     mkclass(          vpxord,    simdInt,    binv,    0,    VRSZ,    0,    32)
     mkclass(          vpxorq,    simdInt,    binv,    0,    VRSZ,    0,    64)
+    mkclass(        vrangepd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(        vrangeps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(        vrangesd,      float,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(        vrangess,      float,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(        vrcp14pd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(        vrcp14ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(        vrcp14sd,      float,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(        vrcp14ss,      float,  floatv,    0,    VRSZ,    0,    32)
     mkclass(        vrcp23ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(        vrcp28pd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(        vrcp28ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(        vrcp28sd,      float,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(        vrcp28ss,      float,  floatv,    0,    VRSZ,    0,    32)
     mkclass(          vrcpps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
     mkclass(          vrcpss,      float,  floats,    0,      32,    0,    32)
+    mkclass(       vreducepd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(       vreduceps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(       vreducesd,      float,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(       vreducess,      float,  floatv,    0,    VRSZ,    0,    32)
     mkclass(     vrndfxpntpd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
     mkclass(     vrndfxpntps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(     vrndscalepd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(     vrndscaleps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(     vrndscalesd,      float,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(     vrndscaless,      float,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(           vrorx,        int,     bin,    0,    VRSZ,    0,    0)
     mkclass(        vroundpd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
     mkclass(        vroundps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
     mkclass(        vroundsd,      float,  floats,    0,      64,    0,    64)
     mkclass(        vroundss,      float,  floats,    0,      32,    0,    32)
+    mkclass(      vrsqrt14pd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(      vrsqrt14ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(      vrsqrt14sd,      float,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(      vrsqrt14ss,      float,  floatv,    0,    VRSZ,    0,    32)
     mkclass(      vrsqrt23ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(      vrsqrt28pd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(      vrsqrt28ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(      vrsqrt28sd,      float,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(      vrsqrt28ss,      float,  floatv,    0,    VRSZ,    0,    32)
     mkclass(        vrsqrtps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
     mkclass(        vrsqrtss,      float,  floats,    0,      32,    0,    32)
     mkclass(           vsarx,        int,     bin,    0,    VRSZ,    0,    0)
+    mkclass(       vscalefpd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(       vscalefps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(       vscalefsd,      float,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(       vscalefss,      float,  floatv,    0,    VRSZ,    0,    32)
     mkclass(        vscaleps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
     mkclass(     vscatterdpd,   simdMove,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(     vscatterdps,   simdMove,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(  vscatterpf0dpd,   simdMove,  floatv,    0,    VRSZ,    0,    64)
     mkclass(  vscatterpf0dps,   simdMove,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(  vscatterpf0qpd,   simdMove,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(  vscatterpf0qps,   simdMove,  floatv,    0,    VRSZ,    0,    32)
     mkclass(vscatterpf0hintdpd, simdMove,  floatv,    0,    VRSZ,    0,    64)
     mkclass(vscatterpf0hintdps, simdMove,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(  vscatterpf1dpd,   simdMove,  floatv,    0,    VRSZ,    0,    64)
     mkclass(  vscatterpf1dps,   simdMove,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(  vscatterpf1qpd,   simdMove,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(  vscatterpf1qps,   simdMove,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(     vscatterqpd,   simdMove,  floatv,    0,    VRSZ,    0,    64)
+    mkclass(     vscatterqps,   simdMove,  floatv,    0,    VRSZ,    0,    32)
     mkclass(           vshlx,        int,     bin,    0,    VRSZ,    0,    0)
     mkclass(           vshrx,        int,     bin,    0,    VRSZ,    0,    0)
+    mkclass(      vshuff32x4,  simdFloat,  floatv,    0,    VRSZ,    0,    128)
+    mkclass(      vshuff64x2,  simdFloat,  floatv,    0,    VRSZ,    0,    128)
+    mkclass(      vshufi32x4,  simdFloat,  floatv,    0,    VRSZ,    0,    128)
+    mkclass(      vshufi64x2,  simdFloat,  floatv,    0,    VRSZ,    0,    128)
     mkclass(         vshufpd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
     mkclass(         vshufps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
     mkclass(         vsqrtpd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
