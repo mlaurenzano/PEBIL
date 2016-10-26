@@ -1602,6 +1602,7 @@ void InstrumentationTool::printStaticFilePerInstruction(const char* extension, V
             fprintf(staticFD, "\t+ipa\t%#llx\t%s # %#llx\n", callTgtAddr, callTgtName, hashValue);
 
             if(isVectorInstruction(ins)) {
+//                ins->print(); // ALLYSONC
                 VectorInfo vecinf = ins->getVectorInfo();
 
                 uint32_t bytesInElem = vecinf.elementSize;

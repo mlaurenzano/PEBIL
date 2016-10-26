@@ -217,7 +217,7 @@ void FlowGraph::computeVectorMasks(){
         // Set the mask register value
         // if mask register is k0, hardwired to 0xffff
         // FIXME: On KNL, it's 64 bits not 16 bits
-        //ins->print();
+        //ins->print(); //ALLYSONC
         if(ins->GET(vector_mask_register) == UD_R_K0) {
             //ins->setKRegister({Definitely, 0xffff});
             ins->setKRegister({Definitely, 0xffffffffffffffff});
@@ -234,6 +234,7 @@ void FlowGraph::computeVectorMasks(){
         OperandX86* dest = ins->getDestOperand();
         if(dest && dest->getType() == UD_OP_REG) {
             RuntimeValue value;
+            uint64_t maskSize = 64;
 
             // Moves
             if(ins->isMoveOperation() && ins->getSourceOperand(0) != NULL) {
@@ -253,10 +254,12 @@ void FlowGraph::computeVectorMasks(){
             // Other instructions
             // FIXME: Assuming mask vector size of 64 bits
             else {
+                // Number of bits set
                 switch(ins->GET(mnemonic)) {
                 case UD_Iinc:
                 {
                     RuntimeValue oldval = nextItem->state[getRegId(dest->GET(base))];
+                    maskSize = 16;
                     if(oldval.confidence == Definitely) {
                         value = {Definitely, oldval.value + 1};
                     }
@@ -271,7 +274,6 @@ void FlowGraph::computeVectorMasks(){
                     RuntimeValue src1Val = getValueOfOperand(src1, nextItem);
                     RuntimeValue src2Val = getValueOfOperand(src2, nextItem);
                     
-                    uint64_t maskSize = 64;
                     if(ins->GET(mnemonic) == UD_Ikaddw)
                       maskSize = 16;
                     if(ins->GET(mnemonic) == UD_Ikaddb)
@@ -282,7 +284,7 @@ void FlowGraph::computeVectorMasks(){
                       maskSize = 32;
 
                     if(src1Val.confidence == Definitely && src2Val.confidence == Definitely){
-                        value = {Definitely, (src1Val.value + src2Val.value) & (maskSize - 1)};
+                        value = {Definitely, src1Val.value + src2Val.value};
                     } else {
                         value = {Unknown, 0};
                     }
@@ -292,12 +294,11 @@ void FlowGraph::computeVectorMasks(){
                     OperandX86* src = ins->getSourceOperand(1);
                     RuntimeValue srcVal = getValueOfOperand(src, nextItem);
                     RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
-                    uint64_t maskSize = 64;
                     if(ins->GET(mnemonic) == UD_Ikand)
                       maskSize = 16;
 
                     if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
-                        value = {Definitely, (srcVal.value & oldVal.value) & (maskSize - 1)};
+                        value = {Definitely, srcVal.value & oldVal.value};
                     } else {
                         value = {Unknown, 0};
                     }
@@ -312,7 +313,6 @@ void FlowGraph::computeVectorMasks(){
                     RuntimeValue src1Val = getValueOfOperand(src1, nextItem);
                     RuntimeValue src2Val = getValueOfOperand(src2, nextItem);
                     
-                    uint64_t maskSize = 64;
                     if(ins->GET(mnemonic) == UD_Ikandw)
                       maskSize = 16;
                     if(ins->GET(mnemonic) == UD_Ikandb)
@@ -323,7 +323,7 @@ void FlowGraph::computeVectorMasks(){
                       maskSize = 32;
 
                     if(src1Val.confidence == Definitely && src2Val.confidence == Definitely){
-                        value = {Definitely, (src1Val.value & src2Val.value) & (maskSize - 1)};
+                        value = {Definitely, src1Val.value & src2Val.value};
                     } else {
                         value = {Unknown, 0};
                     }
@@ -333,11 +333,10 @@ void FlowGraph::computeVectorMasks(){
                     OperandX86* src = ins->getSourceOperand(1);
                     RuntimeValue srcVal = getValueOfOperand(src, nextItem);
                     RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
-                    uint64_t maskSize = 64;
                     if(ins->GET(mnemonic) == UD_Ikandn)
                       maskSize = 16;
                     if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
-                        value = {Definitely, (srcVal.value & (~oldVal.value)) & (maskSize - 1)};
+                        value = {Definitely, srcVal.value & (~oldVal.value)};
                     } else {
                         value = {Unknown, 0};
                     }
@@ -352,7 +351,6 @@ void FlowGraph::computeVectorMasks(){
                     RuntimeValue src1Val = getValueOfOperand(src1, nextItem);
                     RuntimeValue src2Val = getValueOfOperand(src2, nextItem);
                     
-                    uint64_t maskSize = 64;
                     if(ins->GET(mnemonic) == UD_Ikandnw)
                       maskSize = 16;
                     if(ins->GET(mnemonic) == UD_Ikandnb)
@@ -363,7 +361,7 @@ void FlowGraph::computeVectorMasks(){
                       maskSize = 32;
 
                     if(src1Val.confidence == Definitely && src2Val.confidence == Definitely){
-                        value = {Definitely, ((~src1Val.value) & src2Val.value) & (maskSize - 1)};
+                        value = {Definitely, (~src1Val.value) & src2Val.value};
                     } else {
                         value = {Unknown, 0};
                     }
@@ -373,11 +371,10 @@ void FlowGraph::computeVectorMasks(){
                     OperandX86* src = ins->getSourceOperand(1);
                     RuntimeValue srcVal = getValueOfOperand(src, nextItem);
                     RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
-                    uint64_t maskSize = 64;
                     if(ins->GET(mnemonic) == UD_Ikandnr)
                       maskSize = 16;
                     if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
-                        value = {Definitely, ((~srcVal.value) & oldVal.value) & (maskSize - 1)};
+                        value = {Definitely, (~srcVal.value) & oldVal.value};
                     } else {
                         value = {Unknown, 0};
                     }
@@ -404,7 +401,6 @@ void FlowGraph::computeVectorMasks(){
                     OperandX86* src = ins->getSourceOperand(1); // FIXME pretending to have two source operands
                     RuntimeValue srcVal = getValueOfOperand(src, nextItem);
 
-                    uint64_t maskSize = 64;
                     if(ins->GET(mnemonic) == UD_Iknot)
                       maskSize = 16;
                     if(ins->GET(mnemonic) == UD_Iknotw)
@@ -417,7 +413,7 @@ void FlowGraph::computeVectorMasks(){
                       maskSize = 32;
 
                     if(srcVal.confidence == Definitely){
-                        value = {Definitely, (~srcVal.value) & (maskSize - 1)};
+                        value = {Definitely, ~srcVal.value};
                     } else {
                         value = {Unknown, 0};
                     }
@@ -427,12 +423,11 @@ void FlowGraph::computeVectorMasks(){
                     OperandX86* src = ins->getSourceOperand(1);
                     RuntimeValue srcVal = getValueOfOperand(src, nextItem);
                     RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
-                    uint64_t maskSize = 64;
                     if(ins->GET(mnemonic) == UD_Ikor)
                       maskSize = 16;
 
                     if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
-                        value = {Definitely, (srcVal.value | oldVal.value) & (maskSize - 1) };
+                        value = {Definitely, srcVal.value | oldVal.value};
                     } else {
                         value = {Unknown, 0};
                     }
@@ -447,7 +442,6 @@ void FlowGraph::computeVectorMasks(){
                     RuntimeValue src1Val = getValueOfOperand(src1, nextItem);
                     RuntimeValue src2Val = getValueOfOperand(src2, nextItem);
                     
-                    uint64_t maskSize = 64;
                     if(ins->GET(mnemonic) == UD_Ikorw)
                       maskSize = 16;
                     if(ins->GET(mnemonic) == UD_Ikorb)
@@ -458,7 +452,7 @@ void FlowGraph::computeVectorMasks(){
                       maskSize = 32;
 
                     if(src1Val.confidence == Definitely && src2Val.confidence == Definitely){
-                        value = {Definitely, (src1Val.value | src2Val.value) & (maskSize - 1)};
+                        value = {Definitely, src1Val.value | src2Val.value};
                     } else {
                         value = {Unknown, 0};
                     }
@@ -478,7 +472,6 @@ void FlowGraph::computeVectorMasks(){
                     RuntimeValue src1Val = getValueOfOperand(src1, nextItem);
                     RuntimeValue src2Val = getValueOfOperand(src2, nextItem);
                     
-                    uint64_t maskSize = 64;
                     if(ins->GET(mnemonic) == UD_Ikshiftlw)
                       maskSize = 16;
                     if(ins->GET(mnemonic) == UD_Ikshiftlb)
@@ -489,7 +482,7 @@ void FlowGraph::computeVectorMasks(){
                       maskSize = 32;
 
                     if(src1Val.confidence == Definitely && src2Val.confidence == Definitely){
-                        value = {Definitely, (src1Val.value << src2Val.value) & (maskSize - 1)};
+                        value = {Definitely, src1Val.value << src2Val.value};
                     } else {
                         value = {Unknown, 0};
                     }
@@ -504,7 +497,6 @@ void FlowGraph::computeVectorMasks(){
                     RuntimeValue src1Val = getValueOfOperand(src1, nextItem);
                     RuntimeValue src2Val = getValueOfOperand(src2, nextItem);
                     
-                    uint64_t maskSize = 64;
                     if(ins->GET(mnemonic) == UD_Ikshiftrw)
                       maskSize = 16;
                     if(ins->GET(mnemonic) == UD_Ikshiftrb)
@@ -515,7 +507,7 @@ void FlowGraph::computeVectorMasks(){
                       maskSize = 32;
 
                     if(src1Val.confidence == Definitely && src2Val.confidence == Definitely){
-                        value = {Definitely, (src1Val.value >> src2Val.value) & (maskSize - 1)};
+                        value = {Definitely, src1Val.value >> src2Val.value};
                     } else {
                         value = {Unknown, 0};
                     }
@@ -529,13 +521,12 @@ void FlowGraph::computeVectorMasks(){
                     OperandX86* src = ins->getSourceOperand(1);
                     RuntimeValue srcVal = getValueOfOperand(src, nextItem);
                     RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
-                    uint64_t maskSize = 64;
                     if(ins->GET(mnemonic) == UD_Ikxnor)
                       maskSize = 16;
                     if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
-                        value = {Definitely, (~(srcVal.value ^ oldVal.value)) & (maskSize - 1) };
+                        value = {Definitely, ~(srcVal.value ^ oldVal.value)};
                     } else if(src->GET(base) == dest->GET(base)){
-                        value = {Definitely, 0xFFFF};
+                        value = {Definitely, 0xFFFFFFFFFFFFFFFF};
                     } else {
                         value = {Unknown, 0};
                     }
@@ -553,7 +544,6 @@ void FlowGraph::computeVectorMasks(){
                     //printf("\t\tSRC 1: %d - %d, %d \n", getRegId(src1->GET(base))-UD_R_K0, src1Val.confidence, src1Val.value);
                     //printf("\t\tSRC 0: %d - %d, %d \n", getRegId(src2->GET(base))-UD_R_K0, src2Val.confidence, src2Val.value);
                     
-                    uint64_t maskSize = 64;
                     if(ins->GET(mnemonic) == UD_Ikxnorw)
                       maskSize = 16;
                     if(ins->GET(mnemonic) == UD_Ikxnorb)
@@ -564,9 +554,9 @@ void FlowGraph::computeVectorMasks(){
                       maskSize = 32;
 
                     if(src1Val.confidence == Definitely && src2Val.confidence == Definitely){
-                        value = {Definitely, (~(src1Val.value ^ src2Val.value)) & (maskSize - 1)};
+                        value = {Definitely, ~(src1Val.value ^ src2Val.value)};
                     } else if(src1->GET(base) == src2->GET(base)){
-                        value = {Definitely, (0xFFFFFFFFFFFFFFFF) & (maskSize - 1)};
+                        value = {Definitely, 0xFFFFFFFFFFFFFFFF};
                     } else {
                         value = {Unknown, 0};
                     }
@@ -581,11 +571,10 @@ void FlowGraph::computeVectorMasks(){
                     } else {
                         RuntimeValue srcVal = getValueOfOperand(src, nextItem);
                         RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
-                        uint64_t maskSize = 64;
                         if(ins->GET(mnemonic) == UD_Ikandw)
                             maskSize = 16;
                         if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
-                            value = {Definitely, (srcVal.value ^ oldVal.value) & (maskSize - 1)};
+                            value = {Definitely, srcVal.value ^ oldVal.value};
                         } else {
                             value = {Unknown, 0};
                         }
@@ -599,7 +588,6 @@ void FlowGraph::computeVectorMasks(){
                     OperandX86* src1 = ins->getSourceOperand(1);
                     OperandX86* src2 = ins->getSourceOperand(0);
                     
-                    uint64_t maskSize = 64;
                     if(ins->GET(mnemonic) == UD_Ikxorw)
                       maskSize = 16;
                     if(ins->GET(mnemonic) == UD_Ikxorb)
@@ -615,7 +603,7 @@ void FlowGraph::computeVectorMasks(){
                         RuntimeValue src1Val = getValueOfOperand(src1, nextItem);
                         RuntimeValue src2Val = getValueOfOperand(src2, nextItem);
                         if(src1Val.confidence == Definitely && src2Val.confidence == Definitely){
-                            value = {Definitely, (src1Val.value ^ src2Val.value) & (maskSize - 1)};
+                            value = {Definitely, src1Val.value ^ src2Val.value};
                         } else {
                             value = {Unknown, 0};
                         }
@@ -629,6 +617,7 @@ void FlowGraph::computeVectorMasks(){
                     // Check for equality comparisons between the same register
                     Vector<OperandX86*>* sources = ins->getSourceOperands();
                     SwizzleOperation swiz = ins->getSwizzleOperation();
+                    maskSize = 16;
                     if( swiz == 0 && 
                        (*sources)[0]->getType() == UD_OP_REG &&
                        (*sources)[1]->getType() == UD_OP_REG ) {
@@ -663,9 +652,12 @@ void FlowGraph::computeVectorMasks(){
                 }
             }
 
+            // Change the value to use the number of bits specifed by the mask
+            // mnemonic
+            RuntimeValue normValue = {value.confidence, (value.value) & ((1 << maskSize) - 1)};
             //fprintf(stderr, "Writing %d, %d to register: %d\n", value.confidence, value.value, getRegId(dest->GET(base)));
-//            printf("\t\tWriting %d, %d to register: %d\n", value.confidence, value.value, getRegId(dest->GET(base))-UD_R_K0);
-            nextItem->state[getRegId(dest->GET(base))] = value;
+//            printf("\t\tWriting %d, %d to register: %d\n", normValue.confidence, normValue.value, getRegId(dest->GET(base))-UD_R_K0); //ALLYSONC
+            nextItem->state[getRegId(dest->GET(base))] = normValue;
 
         // Updates to stack
         } else if(ins->isStackPush()) {
