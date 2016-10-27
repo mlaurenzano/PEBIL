@@ -149,10 +149,25 @@ struct VectorInfo X86Instruction::getVectorInfo()
       case UD_Ivmovhps:
       case UD_Ivmovlpd:
       case UD_Ivmovlps:
+      
+      // Extract 128 bits from 256 bits
+      case UD_Ivextractf128:
+      case UD_Ivextracti128:
+      // Extract 256 bits from 512 bits
+      case UD_Ivextractf32x8:
+      case UD_Ivextracti32x8:
+      case UD_Ivextractf64x4:
+      case UD_Ivextracti64x4:
 
+        bytesInReg = bytesInReg / 2; break;
 
+      // Extract 128 bits from 256 or 512 bits 
+      case UD_Ivextractf32x4:
+      case UD_Ivextracti32x4:
+      case UD_Ivextractf64x2:
+      case UD_Ivextracti64x2:
+        bytesInReg = 128; break;
 
-        bytesInReg = bytesInReg / 2;
       default:
           break;
     }
@@ -3411,6 +3426,7 @@ void X86InstructionClassifier::generateTable(){
     mkclass(     vaesenclast,	aes,	0,	0,	0,	0,	0)
     mkclass(         vaesimc,	aes,	0,	0,	0,	0,	0)
     mkclass(vaeskeygenassist,	aes,	0,	0,	0,	0,	0)
+// valign* doesn't appear to be for packed?
     mkclass(         valignd,   int,    0,      0,      0,      0,      0)
     mkclass(         valignq,   int,    0,      0,      0,      0,      0)
     mkclass(         vandn,     int, binv,      0,   VRSZ,      0,      0)
