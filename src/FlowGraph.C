@@ -217,7 +217,7 @@ void FlowGraph::computeVectorMasks(){
         // Set the mask register value
         // if mask register is k0, hardwired to 0xffff
         // FIXME: On KNL, it's 64 bits not 16 bits
-        //ins->print(); //ALLYSONC
+//        ins->print(); //ALLYSONC
         if(ins->GET(vector_mask_register) == UD_R_K0) {
             //ins->setKRegister({Definitely, 0xffff});
             ins->setKRegister({Definitely, 0xffffffffffffffff});
@@ -622,6 +622,14 @@ void FlowGraph::computeVectorMasks(){
                        (*sources)[0]->getType() == UD_OP_REG &&
                        (*sources)[1]->getType() == UD_OP_REG ) {
 
+                        uint32_t sourceSize = (*sources)[1]->getBitsUsed();
+                        switch(sourceSize) {
+                          case 512: maskSize = 16; break;
+                          case 256: maskSize = 8; break;
+                          case 128:
+                          default: maskSize = 4;
+                        }
+
                         uint8_t cmpOp = (*sources)[2]->getValue();
 
                         switch(cmpOp) {
@@ -629,7 +637,8 @@ void FlowGraph::computeVectorMasks(){
                         // eq, le, nlt
                         case 0:
                         case 2:
-                        case 5: value = {Definitely, 0xFF}; break;
+                        //case 5: value = {Definitely, 0xFF}; break;
+                        case 5: value = {Definitely, 0xFFFF}; break;
 
                         // lt, ne, nle
                         case 1:
