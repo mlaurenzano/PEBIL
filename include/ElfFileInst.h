@@ -54,7 +54,7 @@ class TextSection;
 #define InstrumentorFlag_none       0x0
 #define InstrumentorFlag_norelocate 0x1
 
-#define INSTHDR_RESERVE_AMT 0x1000
+#define INSTHDR_RESERVE_AMT 0x4000
 #define TEXT_EXTENSION_INC  0x40000
 #define DATA_EXTENSION_INC  0x40000
 #define DEFAULT_INST_SEGMENT_IDX 4
