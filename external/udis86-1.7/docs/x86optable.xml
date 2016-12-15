@@ -4348,7 +4348,7 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="vbroadcastf32x2">
-    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 19 /W=0 ; ZR ZM; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 19 /W=0 ; ZR ZRM; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vbroadcastf32x4">
@@ -5631,7 +5631,7 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="vpbroadcastd">
-    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 58 /W=0 ; ZR ZM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 58 /W=0 ; ZR ZRM ; ; </opcode>
     <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 7C /W=0 ; ZR Ed ; ; </opcode>
   </instruction>
 
@@ -5644,7 +5644,7 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="vpbroadcastq">
-    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 59 /W=1 ; ZR ZM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 59 /W=1 ; ZR ZRM ; ; </opcode>
     <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 7C /W=1 ; ZRM Gq ; ; </opcode>
   </instruction>
 
