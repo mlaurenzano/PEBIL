@@ -6142,7 +6142,7 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="vpmovusqw">
-    <opcode> rexr rexx rexb rexw ; mvex ssef3 0f /3byte=18 34 /W=0 ; ZRM ZR ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex ssef3 0f /3byte=38 14 /W=0 ; ZRM ZR ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vpmovuswb">
