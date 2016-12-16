@@ -3730,7 +3730,7 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="cvtph2ps">
-    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=3a 1d ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=38 13 /W=0 ; V W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="cvtps2ph">

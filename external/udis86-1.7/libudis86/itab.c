@@ -5112,7 +5112,7 @@ static struct ud_itab_entry itab__avx__pfx_sse66__0f__op_0f__3byte_38__reg[256] 
   /* 10 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none },
   /* 11 */  { UD_Igrp_w,       O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, ITAB__AVX__PFX_SSE66__0F__OP_0F__3BYTE_38__REG__OP_11__W },
   /* 12 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none },
-  /* 13 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none },
+  /* 13 */  { UD_Igrp_w,       O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, ITAB__AVX__PFX_SSE66__0F__OP_0F__3BYTE_38__REG__OP_13__W },
   /* 14 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none },
   /* 15 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none },
   /* 16 */  { UD_Igrp_w,       O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, ITAB__AVX__PFX_SSE66__0F__OP_0F__3BYTE_38__REG__OP_16__W },
@@ -5364,6 +5364,11 @@ static struct ud_itab_entry itab__avx__pfx_sse66__0f__op_0f__3byte_38__reg__op_0
 static struct ud_itab_entry itab__avx__pfx_sse66__0f__op_0f__3byte_38__reg__op_11__w[2] = {
   /* 00 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none },
   /* 01 */  { UD_Ivpsravw,     O_V,     O_X,     O_W,     O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
+};
+
+static struct ud_itab_entry itab__avx__pfx_sse66__0f__op_0f__3byte_38__reg__op_13__w[2] = {
+  /* 00 */  { UD_Ivcvtph2ps,   O_V,     O_W,     O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb },
+  /* 01 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none },
 };
 
 static struct ud_itab_entry itab__avx__pfx_sse66__0f__op_0f__3byte_38__reg__op_16__w[2] = {
@@ -13778,6 +13783,7 @@ struct ud_itab_entry * ud_itab_list[] = {
   itab__avx__pfx_sse66__0f__op_0f__3byte_38__reg__op_0c__w,
   itab__avx__pfx_sse66__0f__op_0f__3byte_38__reg__op_0d__w,
   itab__avx__pfx_sse66__0f__op_0f__3byte_38__reg__op_11__w,
+  itab__avx__pfx_sse66__0f__op_0f__3byte_38__reg__op_13__w,
   itab__avx__pfx_sse66__0f__op_0f__3byte_38__reg__op_16__w,
   itab__avx__pfx_sse66__0f__op_0f__3byte_38__reg__op_1a__w,
   itab__avx__pfx_sse66__0f__op_0f__3byte_38__reg__op_36__w,
