@@ -252,6 +252,7 @@ static void decode_mvex(struct ud* u)
 static
 uint32_t get_membytes_accessed(struct ud* u)
 {
+    PEBIL_DEBUG("\t\tget_membytes_accessed");
     assert(u->mvex[0] != 0);
 
     uint8_t elementSize = MVEX_W(u->mvex[1]);
@@ -265,11 +266,13 @@ uint32_t get_membytes_accessed(struct ud* u)
     } else {
         assert(0);
     }
+    PEBIL_DEBUG("\t\tget_membytes_accessed: elementSize = %d, conversion = %d, bytesAccessed = %d", elementSize, conversion, bytesAccessed);
 
     switch(u->mnemonic) {
         // 4 to 16
         case UD_Ivbroadcastf32x4:
         case UD_Ivbroadcasti32x4:
+            PEBIL_DEBUG("\t\tget_membytes_accessed: Returning -- %d", bytesAccessed / 4);
             return bytesAccessed / 4;
 
         // 1 to 16 or single element
@@ -283,11 +286,13 @@ uint32_t get_membytes_accessed(struct ud* u)
         case UD_Ivloadunpackhps:
         case UD_Ivloadunpackld:
         case UD_Ivloadunpacklps:
+            PEBIL_DEBUG("\t\tget_membytes_accessed: Returning -- %d", bytesAccessed / 16);
             return bytesAccessed / 16;
 
         // 4 to 8
         case UD_Ivbroadcastf64x4:
         case UD_Ivbroadcasti64x4:
+            PEBIL_DEBUG("\t\tget_membytes_accessed: Returning -- %d", bytesAccessed / 2);
             return bytesAccessed / 2;
 
         // 1 to 8 or single element
@@ -301,9 +306,11 @@ uint32_t get_membytes_accessed(struct ud* u)
         case UD_Ivloadunpackhq:
         case UD_Ivloadunpacklpd:
         case UD_Ivloadunpacklq:
+            PEBIL_DEBUG("\t\tget_membytes_accessed: Returning -- %d", bytesAccessed / 8);
             return bytesAccessed / 8;
 
         default:
+            PEBIL_DEBUG("\t\tget_membytes_accessed: Returning -- %d", bytesAccessed);
             return bytesAccessed;
     }
 }

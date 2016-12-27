@@ -711,7 +711,6 @@ const char * ud_mnemonics_str[] = {
   "vblendps",
   "vblendvpd",
   "vblendvps",
-  "vbroadcast",
   "vbroadcastf128",
   "vbroadcastf32x2",
   "vbroadcastf32x4",
@@ -1320,7 +1319,6 @@ const char * ud_mnemonics_str[] = {
   "vrsqrt14ps",
   "vrsqrt14sd",
   "vrsqrt14ss",
-  "vrsqrt23ps",
   "vrsqrt28pd",
   "vrsqrt28ps",
   "vrsqrt28sd",
@@ -5117,8 +5115,8 @@ static struct ud_itab_entry itab__avx__pfx_sse66__0f__op_0f__3byte_38__reg[256] 
   /* 15 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none },
   /* 16 */  { UD_Igrp_w,       O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, ITAB__AVX__PFX_SSE66__0F__OP_0F__3BYTE_38__REG__OP_16__W },
   /* 17 */  { UD_Ivptest,      O_V,     O_W,     O_NONE,  O_NONE, F_none, F_ALU, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb|P_vexlig },
-  /* 18 */  { UD_Ivbroadcast,  O_V,     O_W,     O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb|P_vexlig },
-  /* 19 */  { UD_Ivbroadcast,  O_V,     O_W,     O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb },
+  /* 18 */  { UD_Igrp_w,       O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, ITAB__AVX__PFX_SSE66__0F__OP_0F__3BYTE_38__REG__OP_18__W },
+  /* 19 */  { UD_Igrp_w,       O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, ITAB__AVX__PFX_SSE66__0F__OP_0F__3BYTE_38__REG__OP_19__W },
   /* 1A */  { UD_Igrp_w,       O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, ITAB__AVX__PFX_SSE66__0F__OP_0F__3BYTE_38__REG__OP_1A__W },
   /* 1B */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none },
   /* 1C */  { UD_Ivpabsb,      O_V,     O_X,     O_W,     O_NONE, F_none, F_none, R_none, R_none, P_aso|P_oso|P_rexr|P_rexx|P_rexb|P_vexlig },
@@ -5373,6 +5371,16 @@ static struct ud_itab_entry itab__avx__pfx_sse66__0f__op_0f__3byte_38__reg__op_1
 
 static struct ud_itab_entry itab__avx__pfx_sse66__0f__op_0f__3byte_38__reg__op_16__w[2] = {
   /* 00 */  { UD_Ivpermps,     O_V,     O_X,     O_W,     O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
+  /* 01 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none },
+};
+
+static struct ud_itab_entry itab__avx__pfx_sse66__0f__op_0f__3byte_38__reg__op_18__w[2] = {
+  /* 00 */  { UD_Ivbroadcastss, O_V,     O_W,     O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb|P_vexlig },
+  /* 01 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none },
+};
+
+static struct ud_itab_entry itab__avx__pfx_sse66__0f__op_0f__3byte_38__reg__op_19__w[2] = {
+  /* 00 */  { UD_Ivbroadcastsd, O_V,     O_W,     O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb },
   /* 01 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none },
 };
 
@@ -9664,7 +9672,7 @@ static struct ud_itab_entry itab__mvex__pfx_sse66__0f__op_0f__3byte_38__reg__op_
 };
 
 static struct ud_itab_entry itab__mvex__pfx_sse66__0f__op_0f__3byte_38__reg__op_cb__w[2] = {
-  /* 00 */  { UD_Ivrsqrt23ps,  O_ZR,    O_ZRM,   O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
+  /* 00 */  { UD_Ivrcp28ss,    O_ZR,    O_ZV,    O_ZRM,   O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
   /* 01 */  { UD_Ivrcp28sd,    O_ZR,    O_ZV,    O_ZRM,   O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
 };
 
@@ -13785,6 +13793,8 @@ struct ud_itab_entry * ud_itab_list[] = {
   itab__avx__pfx_sse66__0f__op_0f__3byte_38__reg__op_11__w,
   itab__avx__pfx_sse66__0f__op_0f__3byte_38__reg__op_13__w,
   itab__avx__pfx_sse66__0f__op_0f__3byte_38__reg__op_16__w,
+  itab__avx__pfx_sse66__0f__op_0f__3byte_38__reg__op_18__w,
+  itab__avx__pfx_sse66__0f__op_0f__3byte_38__reg__op_19__w,
   itab__avx__pfx_sse66__0f__op_0f__3byte_38__reg__op_1a__w,
   itab__avx__pfx_sse66__0f__op_0f__3byte_38__reg__op_36__w,
   itab__avx__pfx_sse66__0f__op_0f__3byte_38__reg__op_45__w,
