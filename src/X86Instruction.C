@@ -1205,7 +1205,7 @@ bool X86Instruction::isConditionCompare(){
     return false;
 }
 
-
+// convert ud regs to pebil regs
 uint32_t convertUdXMMReg(uint32_t reg){
     ASSERT(reg && IS_XMM_REG(reg));
     return reg - UD_R_XMM0 + X86_FPREG_XMM0;
@@ -1213,30 +1213,48 @@ uint32_t convertUdXMMReg(uint32_t reg){
 
 uint32_t convertUdYMMReg(uint32_t reg){
     ASSERT(reg && IS_YMM_REG(reg));
-    return reg - UD_R_YMM0 + X86_FPREG_XMM0;
+    return reg - UD_R_YMM0 + X86_FPREG_YMM0;
 }
 
-uint32_t OperandX86::getBaseRegister(){
-    ASSERT(GET(base) && IS_ALU_REG(GET(base)));
+uint32_t convertUdZMMReg(uint32_t reg){
+    ASSERT(reg && IS_ZMM_REG(reg));
+    return reg - UD_R_ZMM0 + X86_FPREG_ZMM0;
+}
+
+uint32_t convertUdKReg(uint32_t reg){
+    return reg - UD_R_K0 + X86_REG_K0;
+}
+
+uint32_t X86Instruction::getVectorMaskRegister(){
+    return convertUdKReg(GET(vector_mask_register));
+}
+
+int32_t OperandX86::getBaseRegister(){
+    if(!(GET(base))) {
+        return X86_REG_INVALID;
+    }
+    ASSERT(GET(base));
     if (IS_GPR(GET(base))){
         return convertUdGPReg(GET(base));
     } else if (IS_XMM_REG(GET(base))){
         return convertUdXMMReg(GET(base));
     } else if (IS_YMM_REG(GET(base))){
         return convertUdYMMReg(GET(base));
-    } 
-    __SHOULD_NOT_ARRIVE;
-    return 0;
+    } else if (IS_ZMM_REG(GET(base))){
+        return convertUdZMMReg(GET(base));
+    }
 }
 uint32_t OperandX86::getIndexRegister(){
-    ASSERT(GET(index) && IS_ALU_REG(GET(index)));
+    ASSERT(GET(index));
     if (IS_GPR(GET(index))){
         return convertUdGPReg(GET(index));
     } else if (IS_XMM_REG(GET(index))){
         return convertUdXMMReg(GET(index));
     } else if (IS_YMM_REG(GET(index))){
         return convertUdYMMReg(GET(index));
-    } 
+    } else if (IS_ZMM_REG(GET(index))){
+        return convertUdZMMReg(GET(index));
+    }
     __SHOULD_NOT_ARRIVE;
     return 0;
 }
@@ -1302,7 +1320,7 @@ void X86Instruction::touchedRegisters(BitSet<uint32_t>* regs){
 }
 
 OperandX86* X86Instruction::getMemoryOperand(){
-    ASSERT(isMemoryOperation());
+    ASSERT(isMemoryOperation() || isSoftwarePrefetch());
     if (isExplicitMemoryOperation()){
         for (uint32_t i = 0; i < MAX_OPERANDS; i++){
             if (operands[i] && operands[i]->GET(type) == UD_OP_MEM){
@@ -1378,6 +1396,14 @@ bool X86Instruction::isImplicitMemoryOperation(){
     }
     return false;
 }
+
+bool X86Instruction::isSoftwarePrefetch(){
+    if (IS_PREFETCH(GET(mnemonic))){
+        return true;
+    }
+    return false;
+}
+
 
 bool X86Instruction::isExplicitMemoryOperation(){
     uint32_t memCount = 0;

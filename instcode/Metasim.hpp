@@ -49,43 +49,28 @@ static const char* CounterTypeNames[CounterType_total] = {
     "function"
 };
 
-//enum EntryType : uint8_t {
-//    MEMENRY = 0
-//};
+enum EntryType: uint8_t {
+  MEM_ENTRY = 0,
+  PREFETCH_ENTRY,
+  VECTOR_ENTRY
+};
   
-//typedef struct {
-//    enum EntryType type;
-//    char entry[];
-//} BufferEntry;
-
-typedef struct MemEntry {
-    uint64_t address;
-    uint64_t memseq;
-} MemEntry;
-
-typedef struct ImageMemEntry : MemEntry {
-    uint64_t imageid;
-} ImageMemEntry;
-
-typedef struct PrefetchEntry : MemEntry {} PrefetchEntry;
-typedef struct ImagePrefetchEntry : ImageMemEntry {} ImagePrefetchEntry;
-
-typedef struct VectorMemEntry {
+struct VectorAddress {
     uint32_t indexVector[16];
     uint64_t base;
     uint8_t  scale;
-    uint64_t memseq;
-} VectorCacheEntry;
-
-typedef struct ImageVectorMemEntry : VectorMemEntry {
-    uint64_t imageid;
-} ImageVectorMemEntry;
+    uint64_t mask;
+};
 
 typedef struct {
-    uint64_t    loadstoreflag;   // Dirty Caching
-    uint64_t    imageid;         // Multi-image
-    uint64_t    memseq;          // identifies memop in image
-    uint64_t    address;         // value simulated
+    enum EntryType type;
+    uint8_t        loadstoreflag;   // Dirty Caching
+    uint64_t       imageid;         // Multi-image
+    uint64_t       memseq;          // identifies memop in image
+    union {
+        uint64_t address;        // value simulated
+        struct VectorAddress vectorAddress;
+    };
 //    uint64_t    threadid;        // Error-checking
 //    uint64_t    programAddress;  // only used for adamant
 } BufferEntry;

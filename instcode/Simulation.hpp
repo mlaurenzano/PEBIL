@@ -431,6 +431,7 @@ protected:
       uint64_t misses;
       uint64_t AddressRangesCount;
       vector<uint64_t>* toEvictAddresses;
+      uint32_t processAddress(void* stats, uint64_t address, uint64_t memseq, uint8_t loadstoreflag);
 
 public:      
     // note that this doesn't contain any stats gathering code. that is done at the

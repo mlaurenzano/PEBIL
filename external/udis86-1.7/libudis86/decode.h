@@ -163,6 +163,7 @@
 #define SIB_B(b)        ( ( b ) & 7 )
 #define SIB_SCALE(b)    ((1 << SIB_S(b)) & ~1)
 
+#define SIB_SCALE(b)    ((1 << SIB_S(b)) & ~1)
 /* modrm bits */
 #define MODRM_REG(b)    ( ( ( b ) >> 3 ) & 7 )
 #define MODRM_NNN(b)    ( ( ( b ) >> 3 ) & 7 )

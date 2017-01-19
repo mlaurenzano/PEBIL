@@ -627,7 +627,7 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
     // Save k registers
     if(saveZmmRegisters) {
         for(int i = 1; i < 8; ++i) {
-            wrapperInstructions.append(X86InstructionFactory64::emitMoveKToReg(i, X86_REG_AX));
+            wrapperInstructions.append(X86InstructionFactory64::emitMoveKToReg(i+X86_REG_K0, X86_REG_AX));
             wrapperInstructions.append(X86InstructionFactory64::emitStackPush(X86_REG_AX));
         }
     }
@@ -699,7 +699,7 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
     if(saveZmmRegisters) {
         for(int i = 7; i >= 1; --i) {
             wrapperInstructions.append(X86InstructionFactory64::emitStackPop(X86_REG_AX));
-            wrapperInstructions.append(X86InstructionFactory64::emitMoveRegToK(X86_REG_AX, i));
+            wrapperInstructions.append(X86InstructionFactory64::emitMoveRegToK(X86_REG_AX, i+X86_REG_K0));
         }
     }
 
@@ -1263,6 +1263,7 @@ void InstrumentationPoint64::insertStateProtection(){
         // count the number of bytes the tool wants
         if (instrumentation->getType() == PebilClassType_InstrumentationSnippet){
             InstrumentationSnippet* snippet = (InstrumentationSnippet*)instrumentation;
+            assert(snippet->getNumberOfCoreInstructions() > 0);
             for (uint32_t i = 0; i < snippet->getNumberOfCoreInstructions(); i++){
                 numberOfBytes += snippet->getCoreInstruction(i)->getSizeInBytes();
             }

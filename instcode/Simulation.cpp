@@ -82,6 +82,7 @@ static uint32_t CountCacheStructures = 0;
 static uint32_t RangeHandlerIndex = 0;
 static int32_t ReuseHandlerIndex = 0;
 static int32_t SpatialHandlerIndex = 0;
+static bool ExecuteSoftwarePrefetches = true;
 
 static SamplingMethod* Sampler = NULL;
 static DataManager<SimulationStats*>* AllData = NULL;
@@ -959,9 +960,9 @@ extern "C" {
                                             c->Store(bbid, lvl, s->GetStores(memid, lvl));                                    
                                         }
                                 }
-                                if(!c->Verify()) {
-                                    warn << "Failed check on aggregated cache stats" << ENDL;
-                                }
+                            }
+                            if(!c->Verify()) {
+                                warn << "Failed check on aggregated cache stats" << ENDL;
                             }
                             if(c->hybridCache){
                                 for (uint32_t memid = 0; memid < st->AllocCount; memid++){
@@ -1372,11 +1373,39 @@ void AddressRangeHandler::Print(ofstream& f){
 }
 
 uint32_t AddressRangeHandler::Process(void* stats, BufferEntry* access){
-    uint32_t memid = (uint32_t)access->memseq;
-    uint64_t addr = access->address;
-    RangeStats* rs = (RangeStats*)stats;
-    rs->Update(memid, addr);
-     return 0; // Nonsensical to return anything, but to keep it compatbile with base class method which should return when used by CacheHandler.  
+    if(access->type == MEM_ENTRY) {
+        uint32_t memid = (uint32_t)access->memseq;
+        uint64_t addr = access->address;
+        RangeStats* rs = (RangeStats*)stats;
+        rs->Update(memid, addr);
+        return 0;
+    } else if(access->type == VECTOR_ENTRY) {
+        // FIXME
+        // Unsure how the mask and index vector are being set up. For now,
+        // I'm assuming that the last significant bit of the mask corresponds
+        // to the first index (indexVector[0]
+        uint64_t currAddr;
+        uint16_t mask = (access->vectorAddress).mask;
+        uint32_t memid = (uint32_t)access->memseq;
+        RangeStats* rs = (RangeStats*)stats;
+        for (int i = 0; i < 16; i++) {
+          if(mask % 2 == 1)
+          {
+            currAddr = (access->vectorAddress).base + (access->vectorAddress).indexVector[i] * (access->vectorAddress).scale;
+            rs->Update(memid, currAddr);
+          }
+          mask = (mask >> 1);
+        }
+        return 0;
+    } else if(access->type == PREFETCH_ENTRY) {
+        uint32_t memid = (uint32_t)access->memseq;
+        uint64_t addr = access->address;
+        if (ExecuteSoftwarePrefetches) {
+          RangeStats* rs = (RangeStats*)stats;
+          rs->Update(memid, addr);
+        }
+        return 0;
+   }
 }
 
 CacheStats::CacheStats(uint32_t lvl, uint32_t sysid, uint32_t capacity,uint32_t hybridcache){
@@ -2601,50 +2630,87 @@ CacheStructureHandler::~CacheStructureHandler(){
     }
 }
 
-uint32_t CacheStructureHandler::Process(void* stats_in, BufferEntry* access){
+uint32_t CacheStructureHandler::processAddress(void* stats_in,
+                                               uint64_t address,
+                                               uint64_t memseq,
+                                               uint8_t loadstoreflag) {
     uint32_t next = 0,tmpNext = 0;
-    uint64_t victim = access->address;
+    uint64_t victim = address;
 
     CacheStats* stats = (CacheStats*)stats_in;
 
     EvictionInfo evictInfo;
     evictInfo.level = INVALID_CACHE_LEVEL;
-    uint64_t loadstoreflag= access->loadstoreflag;
     bool anyEvict = false;
     uint32_t resLevel = 0;
 
     while (next < levelCount){
         resLevel = next;
-        next = levels[next]->Process(stats, access->memseq, victim, loadstoreflag,&anyEvict,(void*)(&evictInfo));
+        next = levels[next]->Process(stats, memseq, victim, loadstoreflag,&anyEvict,(void*)(&evictInfo));
         if(next!=0) loadstoreflag=1; // If next level is checked, then it should be a miss from current level, which implies next operation is a load to a next level!!
     }
 
     if(DirtyCacheHandling&&anyEvict){
         while( (tmpNext<levelCount) ){
             if(levels[tmpNext]->GetEvictStatus()){
-                levels[tmpNext]->EvictDirty(stats, levels,access->memseq,(void*)(&evictInfo));
+                levels[tmpNext]->EvictDirty(stats, levels, memseq,(void*)(&evictInfo));
             }
             tmpNext++;
         }
     } 
       
     if( (hybridCache) && (next!=INVALID_CACHE_LEVEL) && (next>=levelCount) ){ // Implies miss at LLC 
-        CheckRange(stats,victim,access->loadstoreflag,access->memseq); 
+        CheckRange(stats,victim,loadstoreflag,memseq); 
         uint32_t lastLevel = levelCount-1;
         if(levels[lastLevel]->GetEvictStatus()){
-            levels[lastLevel]->EvictDirty(stats,levels,access->memseq,(void*)(&evictInfo));
+            levels[lastLevel]->EvictDirty(stats,levels,memseq,(void*)(&evictInfo));
             vector<uint64_t>* toEvictAddresses = levels[lastLevel]->passEvictAddresses();
 
             while(toEvictAddresses->size()){ // To handle cases where an address from Ln is missing in Ln+1 (e.g  missing in L2, found in L1). 
                 victim=toEvictAddresses->back();
                 toEvictAddresses->pop_back();
                 loadstoreflag=0; // Since its dirty and written back.
-                CheckRange(stats,victim,loadstoreflag,access->memseq); 
+                CheckRange(stats,victim,loadstoreflag,memseq); 
             }
         }
         resLevel = levelCount+1;
     } 
     return resLevel;
+}
+
+uint32_t CacheStructureHandler::Process(void* stats_in, BufferEntry* access){
+    if(access->type == MEM_ENTRY) {
+        return processAddress(stats_in, access->address, access->memseq, access->loadstoreflag);
+    } else if(access->type == VECTOR_ENTRY) {
+        // FIXME
+        // Unsure how the mask and index vector are being set up. For now,
+        // I'm assuming that the last significant bit of the mask corresponds
+        // to the first index (indexVector[0]
+        // for each index i in indexVector:
+        //    load/store base + indexVector[i] * scale
+        uint32_t lastReturn = 0;
+        uint64_t currAddr;
+        uint16_t mask = (access->vectorAddress).mask;
+        for (int i = 0; i < 16; i++) {
+          if(mask % 2 == 1)
+          {
+            currAddr = (access->vectorAddress).base + (access->vectorAddress).indexVector[i] * (access->vectorAddress).scale;
+            lastReturn = processAddress(stats_in, currAddr, access->memseq, access->loadstoreflag);
+          }
+          mask = (mask >> 1);
+        }
+        // Unsure what this return value is used for
+        // (Seems to be related to adamant). Just returning last value from
+        // processAddress
+        return lastReturn;
+    } else if(access->type == PREFETCH_ENTRY) {
+      if (ExecuteSoftwarePrefetches) {
+        return processAddress(stats_in, access->address, access->memseq, access->loadstoreflag);
+      }
+      else {
+        return 0;
+      }
+   }
 }
 
 // called for every new image and thread

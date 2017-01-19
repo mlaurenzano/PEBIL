@@ -79,11 +79,6 @@ int compareLinkBaseAddress(const void* arg1, const void* arg2){
     AddressAnchor* a2 = *((AddressAnchor**)arg2);
 
     return a1->linkBaseAddress - a2->linkBaseAddress;
-    if(a1->linkBaseAddress < a2->linkBaseAddress)
-        return -1;
-    if(a1->linkBaseAddress > a2->linkBaseAddress)
-        return 1;
-    return 0;
 }
 
 void AddressAnchor::refreshCache(){

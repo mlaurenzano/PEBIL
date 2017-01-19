@@ -1231,6 +1231,7 @@ decode_vector_modrm_rm(struct ud* u,
     op->size = resolve_operand_size(u, size);
 
     op->scale = SIB_SCALE(inp_curr(u));
+
     // TODO Index vector not necessarily a 512-bit AVX register!
     // example: vgatherdpd
     // For now, hard-coding mnemonics where index reg size not based
@@ -1408,8 +1409,8 @@ decode_modrm_rm(struct ud* u,
         /* Scale-Index-Base (SIB) */
         if ((rm & 7) == 4) {
             inp_next(u);
-            
-            op->scale = (1 << SIB_S(inp_curr(u))) & ~1;
+
+            op->scale = SIB_SCALE(inp_curr(u));
             op->index = UD_R_RAX + (SIB_I(inp_curr(u)) | (REX_X(u->pfx_rex) << 3));
             op->base  = UD_R_RAX + (SIB_B(inp_curr(u)) | (REX_B(u->pfx_rex) << 3));
 
