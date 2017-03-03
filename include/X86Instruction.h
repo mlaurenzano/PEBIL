@@ -370,6 +370,7 @@ enum X86InstructionType {
     X86InstructionType_simdFloat,
     X86InstructionType_simdInt,
     X86InstructionType_simdMove,
+    X86InstructionType_helpMove,  // move insns that aren't scalar or simd (usu scalar -> SIMD)
     X86InstructionType_aes,
     X86InstructionType_io,
     X86InstructionType_prefetch,
@@ -642,6 +643,7 @@ public:
     bool isConditionalMove();
     bool isScatterGatherOp();
     bool isVectorMaskOp();
+    bool isHelperMove();
 
     bool isBinUnknown();
     bool isBinInvalid();

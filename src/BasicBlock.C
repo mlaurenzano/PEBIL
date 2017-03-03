@@ -398,6 +398,16 @@ uint32_t BasicBlock::getNumberOfVectorMaskOps(){
     return count;
 }
 
+uint32_t BasicBlock::getNumberOfHelperMoves(){
+    uint32_t count = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isHelperMove()){
+            count++;
+        }
+    }
+    return count;
+}
+
 uint32_t BasicBlock::getNumberOfBranches(){
     uint32_t branchCount = 0;
     for (uint32_t i = 0; i < instructions.size(); i++){

@@ -159,6 +159,7 @@ public:
     uint32_t getNumberOfLogicOps();
     uint32_t getNumberOfScatterGatherOps();
     uint32_t getNumberOfVectorMaskOps();
+    uint32_t getNumberOfHelperMoves();
 
     uint32_t getNumberOfBinMem();
     uint32_t getNumberOfBinSystem();

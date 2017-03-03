@@ -1191,7 +1191,7 @@ void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* 
 
     if (printDetail){
         fprintf(staticFD, "# +lpi <loopcnt> <loopid> <ldepth> <lploc>\n");
-        fprintf(staticFD, "# +cnt <branch_op> <int_op> <logic_op> <shiftrotate_op> <trapsyscall_op> <specialreg_op> <other_op> <load_op> <store_op> <total_mem_op> <sw_prefs> <scatter_gather_op> <vector_mask_op>\n");
+        fprintf(staticFD, "# +cnt <branch_op> <int_op> <logic_op> <shiftrotate_op> <trapsyscall_op> <specialreg_op> <other_op> <load_op> <store_op> <total_mem_op> <sw_prefs> <scatter_gather_op> <vector_mask_op> <help_op>\n");
         fprintf(staticFD, "# +mem <total_mem_op> <total_mem_bytes> <bytes/op>\n");
         fprintf(staticFD, "# +lpc <loop_head> <parent_loop_head>\n");
         fprintf(staticFD, "# +dud <dudist1>:<duint1>:<dufp1>:<dumem1> <dudist2>:<ducnt2>:<dufp2>:<dumem2>...\n");
@@ -1246,11 +1246,12 @@ void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* 
                 }
             }
             fprintf(staticFD, "\t+lpi\t%d\t%d\t%d\t%d # %#llx\n", loopCount, loopId, loopDepth, loopLoc, bb->getHashCode().getValue());
-            fprintf(staticFD, "\t+cnt\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d # %#llx\n", 
+            fprintf(staticFD, "\t+cnt\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d # %#llx\n", 
                     bb->getNumberOfBranches(), bb->getNumberOfIntegerOps(), bb->getNumberOfLogicOps(), bb->getNumberOfShiftRotOps(),
                     bb->getNumberOfSyscalls(), bb->getNumberOfSpecialRegOps(), bb->getNumberOfStringOps(),
                     bb->getNumberOfLoads(), bb->getNumberOfStores(), bb->getNumberOfMemoryOps(), bb->getNumberOfSWPrefetches(),
-                    bb->getNumberOfScatterGatherOps(), bb->getNumberOfVectorMaskOps(), bb->getHashCode().getValue());
+                    bb->getNumberOfScatterGatherOps(), bb->getNumberOfVectorMaskOps(), 
+                    bb->getNumberOfHelperMoves(), bb->getHashCode().getValue());
 
             //            ASSERT(bb->getNumberOfLoads() + bb->getNumberOfStores() == bb->getNumberOfMemoryOps());
 
@@ -1486,7 +1487,7 @@ void InstrumentationTool::printStaticFilePerInstruction(const char* extension, V
 
     if (printDetail){
         fprintf(staticFD, "# +lpi <loopcnt> <loopid> <ldepth> <lploc>\n");
-        fprintf(staticFD, "# +cnt <branch_op> <int_op> <logic_op> <shiftrotate_op> <trapsyscall_op> <specialreg_op> <other_op> <load_op> <store_op> <total_mem_op> <sw_prefs> <scatter_gather_op> <vector_mask_op>\n");
+        fprintf(staticFD, "# +cnt <branch_op> <int_op> <logic_op> <shiftrotate_op> <trapsyscall_op> <specialreg_op> <other_op> <load_op> <store_op> <total_mem_op> <sw_prefs> <scatter_gather_op> <vector_mask_op> <help_op>\n");
         fprintf(staticFD, "# +mem <total_mem_op> <total_mem_bytes> <bytes/op>\n");
         fprintf(staticFD, "# +lpc <loop_head> <parent_loop_head>\n");
         fprintf(staticFD, "# +dud <dudist1>:<duint1>:<dufp1>:<dumem1> <dudist2>:<ducnt2>:<dufp2>:<dumem2>...\n");
@@ -1549,10 +1550,10 @@ void InstrumentationTool::printStaticFilePerInstruction(const char* extension, V
                 }
             }
             fprintf(staticFD, "\t+lpi\t%d\t%d\t%d\t%d # %#llx\n", loopCount, loopId, loopDepth, loopLoc, hashValue);
-            fprintf(staticFD, "\t+cnt\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d # %#llx\n", 
+            fprintf(staticFD, "\t+cnt\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d # %#llx\n", 
                     (uint32_t)ins->isBranch(), (uint32_t)ins->isIntegerOperation(), (uint32_t)ins->isLogicOp(), (uint32_t)ins->isSpecialRegOp(),
                     (uint32_t)ins->isSystemCall(), (uint32_t)ins->isSpecialRegOp(), (uint32_t)ins->isStringOperation(),
-                    (uint32_t)ins->isLoad(), (uint32_t)ins->isStore(), (uint32_t)ins->isMemoryOperation(), (uint32_t)ins->isSoftwarePrefetch(), (uint32_t)ins->isScatterGatherOp(), (uint32_t)ins->isVectorMaskOp(), hashValue);
+                    (uint32_t)ins->isLoad(), (uint32_t)ins->isStore(), (uint32_t)ins->isMemoryOperation(), (uint32_t)ins->isSoftwarePrefetch(), (uint32_t)ins->isScatterGatherOp(), (uint32_t)ins->isVectorMaskOp(), (uint32_t)ins->isHelperMove(), hashValue);
 
             if (ins->isMemoryOperation()){
                 ASSERT(ins->isLoad() || ins->isStore());
