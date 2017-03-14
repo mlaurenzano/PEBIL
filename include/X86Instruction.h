@@ -696,6 +696,9 @@ public:
     void setLeader(bool ldr) { leader = ldr; }
     bool isLeader() { return leader; }
 
+    bool hasVEXPrefix();
+    bool hasEVEXPrefix();
+
     uint64_t getBaseAddress() { return baseAddress; }
     bool usesControlTarget();
 

@@ -2402,12 +2402,8 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="movss">
     <opcode> aso rexr rexx rexb ; ssef3 0f 10 ; Vd Wd ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef3 0f 10 /mod=!11 ; Vd Wd ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef3 0f 10 /mod=11 ; Vd X Wd ; ; </opcode>
 
     <opcode> aso rexr rexx rexb ; ssef3 0f 11 ; Wd Vd ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef3 0f 11 /mod=!11 ; Wd Vd ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef3 0f 11 /mod=11 ; Wd X Vd ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movsx">
@@ -5390,14 +5386,14 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="vmovsd">
-    <opcode> rexr rexx rexb rexw ; avxC4 ssef2 0f 10 ; V X W ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; avxC4 ssef2 0f 10 ; V W ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; avxC4 ssef2 0f 11 ; W X V ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; avxC4 ssef2 0f 11 ; W V ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; mvex ssef2 0f 10 /W=1 ; ZR ZV ZRM ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; mvex ssef2 0f 10 /W=1 ; ZR ZRM ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; mvex ssef2 0f 11 /W=1 ; ZRM ZV ZR ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; mvex ssef2 0f 11 /W=1 ; ZRM ZR ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef2 0f 10 /mod=!11 ; Vq Wq ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef2 0f 10 /mod=11 ; Vq X Wq ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef2 0f 11 /mod=!11 ; Wq Vq ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef2 0f 11 /mod=11 ; Wq X Vq ; ; </opcode>
+    <opcode> rexr rexx rexb rexw vexlig ; mvex ssef2 0f 10 /mod=11 /W=1 ; ZR ZV ZRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw vexlig ; mvex ssef2 0f 10 /mod=!11 /W=1 ; ZR ZRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw vexlig ; mvex ssef2 0f 11 /mod=11 /W=1 ; ZRM ZV ZR ; ; </opcode>
+    <opcode> rexr rexx rexb rexw vexlig ; mvex ssef2 0f 11 /mod=!11 /W=1 ; ZRM ZR ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vmovshdup">
@@ -5411,14 +5407,14 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="vmovss">
-    <opcode> rexr rexx rexb rexw ; avxC4 ssef3 0f 10 ; V X W ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; avxC4 ssef3 0f 10 ; V W ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; avxC4 ssef3 0f 11 ; W X V ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; avxC4 ssef3 0f 11 ; W V ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; mvex ssef3 0f 10 /W=0 ; ZR ZV ZRM ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; mvex ssef3 0f 10 /W=0 ; ZR ZRM ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; mvex ssef3 0f 11 /W=0 ; ZRM ZV ZR ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; mvex ssef3 0f 11 /W=0 ; ZRM ZR ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef3 0f 10 /mod=!11 ; Vd Wd ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef3 0f 10 /mod=11 ; Vd X Wd ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef3 0f 11 /mod=!11 ; Wd Vd ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef3 0f 11 /mod=11 ; Wd X Vd ; ; </opcode>
+    <opcode> rexr rexx rexb rexw vexlig ; mvex ssef3 0f 10 /mod=11 /W=0 ; ZR ZV ZRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw vexlig ; mvex ssef3 0f 10 /mod=!11 /W=0 ; ZR ZRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw vexlig ; mvex ssef3 0f 11 /mod=11 /W=0 ; ZRM ZV ZR ; ; </opcode>
+    <opcode> rexr rexx rexb rexw vexlig ; mvex ssef3 0f 11 /mod=!11 /W=0 ; ZRM ZR ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vmovupd">

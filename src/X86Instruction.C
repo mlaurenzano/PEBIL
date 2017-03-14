@@ -1991,6 +1991,18 @@ uint64_t X86Instruction::findJumpTableBaseAddress(Vector<X86Instruction*>* funct
     return 0;
 }
 
+bool X86Instruction::hasVEXPrefix() {
+    if (GET(insn_bytes)[0] == 0xC5 || GET(insn_bytes)[0] == 0xC4 )
+      return true;
+    return false;  
+}
+
+bool X86Instruction::hasEVEXPrefix() {
+    if (GET(insn_bytes)[0] == 0x62)
+      return true;
+    return false;  
+}
+
 bool X86Instruction::isControl(){
     return  (isConditionalBranch() || isUnconditionalBranch() || isSystemCall() || isFunctionCall() || isReturn());
 }
@@ -3742,8 +3754,10 @@ void X86InstructionClassifier::generateTable(){
     mkclass(       vmovdqu64,   simdMove,      intv,    0,    VRSZ,    0,    64)
     mkclass(        vmovhlps,   simdMove,    floatv,    0,    VRSZ,    0,   32)
     mkclass(        vmovlhps,   simdMove,    floatv,    0,    VRSZ,    0,   32)
+    // vmovhpd is a corner case (see getInstructionType())
     mkclass(         vmovhpd,   simdMove,    floatv,    0,    VRSZ,    0,    64)
     mkclass(         vmovhps,   simdMove,    floatv,    0,    VRSZ,    0,    32)
+    // vmovlpd is a corner case (see getInstructionType())
     mkclass(         vmovlpd,   simdMove,    floatv,    0,    VRSZ,    0,    64)
     mkclass(         vmovlps,   simdMove,    floatv,    0,    VRSZ,    0,    32)
     mkclass(       vmovmskpd,   simdMove,    floatv,    0,    VRSZ,    0,    64)
@@ -3757,9 +3771,11 @@ void X86InstructionClassifier::generateTable(){
     mkclass(        vmovntpd,   simdMove,    floatv,    0,    VRSZ,    0,    64)
     mkclass(        vmovntps,   simdMove,    floatv,    0,    VRSZ,    0,    32)
     mkclass(           vmovq,       move,         0,    0,       0,    0,    0)
+    // vmovsd is a corner case (see getInstructionType())
     mkclass(          vmovsd,   simdMove,    floats,    0,      64,    0,    64)
     mkclass(       vmovshdup,   simdMove,    floatv,    0,    VRSZ,    0,    32)
     mkclass(       vmovsldup,   simdMove,    floatv,    0,    VRSZ,    0,    32)
+    // vmovss is a corner case (see getInstructionType())
     mkclass(          vmovss,   simdMove,    floats,    0,      32,    0,    32)
     mkclass(         vmovupd,   simdMove,    floatv,    0,    VRSZ,    0,    64)
     mkclass(         vmovups,   simdMove,    floatv,    0,    VRSZ,    0,    32)
@@ -4194,6 +4210,40 @@ uint8_t X86InstructionClassifier::getInstructionElemSize(X86Instruction* x){
 }
 
 X86InstructionType X86InstructionClassifier::getInstructionType(X86Instruction* x){
+    // Handle corner cases where some mnemonics are scalar or simd
+    // depending on # of operands
+    // vmovss/vmovsd: if 3 operands then SIMD, else then scalar
+    if (x->GET(mnemonic) == UD_Ivmovsd || x->GET(mnemonic) == UD_Ivmovss) {
+      if (x->getOperands()->size() == 3) {
+        return X86InstructionType_simdMove;
+      } else {
+        return X86InstructionType_move;
+      }
+    }
+    // vmovhpd/vmovlpd: if 3 operands then SIMD, else then helperMove
+    if (x->GET(mnemonic) == UD_Ivmovhpd || x->GET(mnemonic) == UD_Ivmovlpd) {
+      if (x->getOperands()->size() == 3) {
+        return X86InstructionType_simdMove;
+      } else {
+        return X86InstructionType_helpMove;
+      }
+    }
+    // vmovddup: if destination operand is of type xmm then helperMove,
+    //  else then SIMD
+    if (x->GET(mnemonic) == UD_Ivmovddup) {
+      // NOTE: getDestOperand() would be cleaner but it calls isBranch()
+      // which eventually comes back and calls this function. 
+      OperandX86* dest = x->getOperand(DEST_OPERAND);
+//      PRINT_INFOR("ALLYSONC: UD_OP_REG = %d", UD_OP_REG);
+//      PRINT_INFOR("ALLYSONC: UD_R_XMM0 = %d", UD_R_XMM0);
+//      PRINT_INFOR("ALLYSONC: type = %d", dest->getType());
+      if (dest->GET(base) >= UD_R_XMM0 && \
+          dest->GET(base) <= UD_R_XMM31) { 
+        return X86InstructionType_helpMove;
+      } else {
+        return X86InstructionType_simdMove;
+      }
+    }
     return classifications[x->GET(mnemonic)].type;
 }
 
